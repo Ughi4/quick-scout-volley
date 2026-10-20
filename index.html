@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Quick Scout Volley Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0C8A80">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/images/app_icon.png">
+  <link rel="apple-touch-icon" href="assets/images/app_icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+
+    <!-- 1. TOP BAR -->
+    <header class="top-bar">
+      <!-- Menu Opzioni -->
+      <button class="top-bar-btn btn-menu" onclick="document.getElementById('modal-gestione').classList.add('visibile')" title="Menu Opzioni">
+        <img src="assets/images/btn_menu.png" alt="Menu">
+      </button>
+
+      <!-- Ruota Scout Apri -->
+      <button class="btn-ruota-top" onclick="app.apriRuota()" title="Apri Ruota Scout">
+        <span>🔘</span> RUOTA SCOUT
+      </button>
+
+      <!-- Schermo Intero Fullscreen (Elimina la barra Android) -->
+      <button id="btn-fullscreen" class="btn-fullscreen-top" onclick="app.toggleFullscreen()" title="Schermo Intero Immersivo (Nasconde barra tablet)">
+        <span>⛶</span> FULLSCREEN
+      </button>
+
+      <!-- Tabellone Casa -->
+      <div class="tabellone-squadra">
+        <img id="palla-casa" class="icon-palla" src="assets/images/possesso_palla.png" alt="Palla">
+        <span id="nome-casa-display" class="nome-squadra">CASA</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(-1, 0)" title="Diminuisci punto">-</button>
+        <span id="display-punti-casa" class="punti-display">0</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(1, 0)" title="Aumenta punto">+</button>
+      </div>
+
+      <!-- Set Display -->
+      <div id="set-display" class="set-badge">SET 1</div>
+
+      <!-- Tabellone Ospite -->
+      <div class="tabellone-squadra">
+        <img id="palla-ospite" class="icon-palla" src="assets/images/possesso_palla.png" alt="Palla" style="display:none;">
+        <span id="nome-ospite-display" class="nome-squadra">OSPITI</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(0, -1)" title="Diminuisci punto">-</button>
+        <span id="display-punti-ospite" class="punti-display">0</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(0, 1)" title="Aumenta punto">+</button>
+      </div>
+
+      <!-- Report PDF -->
+      <button class="btn-report-top" onclick="app.generaReportPDF()" title="Scarica Report Partita PDF">
+        <img src="assets/images/btn_report_large.png" alt="Report">
+        <span>REPORT PDF</span>
+      </button>
+    </header>
+
+    <!-- 2. CORPO CENTRALE (3 COLONNE) -->
+    <main class="main-body">
+
+      <!-- COLONNA 1: PANCHINA -->
+      <section class="colonna-panchina">
+        <!-- Capsula Sostituzioni (Regola 8 Sostituzioni FIPAV) -->
+        <div class="sostituzioni-wrapper">
+          <div class="capsula-sostituzioni" onclick="app.apriModalSostituzione()" title="Sostituzioni">
+            <span id="sostituzioni-counter" class="sostituzioni-numero">0</span>
+          </div>
+          <span id="sostituzioni-label" class="sostituzioni-label">0/8 Sost</span>
+          <div class="sost-stepper-row">
+            <button class="btn-mini-stepper" onclick="app.sostituzioniCasa = Math.max(0, app.sostituzioniCasa - 1); app.salvaStato(); app.render();">-</button>
+            <button class="btn-mini-stepper" onclick="if(app.sostituzioniCasa < app.maxSostituzioni){app.sostituzioniCasa++; app.salvaStato(); app.render();}">+</button>
+          </div>
+        </div>
+
+        <!-- Box Panchina -->
+        <div class="box-panchina">
+          <span class="panchina-titolo">PANCHINA</span>
+          <div id="panchina-lista" class="panchina-lista"></div>
+          <div class="panchina-timeout-area">
+            <img id="timeout-img" class="img-timeout" src="assets/images/timeout_0.png" alt="Timeout">
+            <button id="btn-timeout-casa" class="btn-timeout" onclick="app.chiamaTimeout()">T.OUT</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLONNA 2: FORMAZIONE CAMPO (6 ZONE) -->
+      <section class="colonna-formazione">
+        <!-- Barra Superiore Avversari & Libero con Linea Rete -->
+        <div class="campo-rete-header">
+          <div class="barra-avversari">
+            <button class="btn-avversario" onclick="app.puntoAvversario()" title="Punto Avversari">
+              <img src="assets/images/punto_avversari.png" alt="Punto Avv.">
+              <span>Punto Avv.</span>
+            </button>
+
+            <button class="chip-libero" onclick="app.scambiaLiberoConCentrale()" title="Scambia Libero con Centrale">
+              <span>🛡️</span> Libero (L)
+            </button>
+
+            <button class="btn-avversario" onclick="app.erroreAvversario()" title="Errore Avversari">
+              <img src="assets/images/errore_avversari.png" alt="Errore Avv.">
+              <span>Errore Avv.</span>
+            </button>
+          </div>
+          <div class="linea-rete-campo"></div>
+        </div>
+
+        <!-- Prima Linea (Zona 4, Zona 3, Zona 2) -->
+        <div class="riga-giocatori riga-attacco">
+          <div id="zona-4" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z4</div>
+            <span class="label-giocatore">Zona 4</span>
+          </div>
+          <div id="zona-3" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z3</div>
+            <span class="label-giocatore">Zona 3</span>
+          </div>
+          <div id="zona-2" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z2</div>
+            <span class="label-giocatore">Zona 2</span>
+          </div>
+        </div>
+
+        <!-- Linea dei 3 Metri & Controlli Rotazione -->
+        <div class="linea-3-metri-container">
+          <div class="barra-rotazione">
+            <button class="btn-rotazione" onclick="app.eseguiRotazioneInversa()" title="Rotazione Antioraria">↺</button>
+            <span class="rotazione-label">ROTAZIONE</span>
+            <button class="btn-rotazione" onclick="app.eseguiRotazione()" title="Rotazione Oraria">↻</button>
+            <span class="hint-ruota-badge">🔘 Tocca atleta per Ruota</span>
+          </div>
+        </div>
+
+        <!-- Seconda Linea (Zona 5, Zona 6, Zona 1) -->
+        <div class="riga-giocatori riga-difesa">
+          <div id="zona-5" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z5</div>
+            <span class="label-giocatore">Zona 5</span>
+          </div>
+          <div id="zona-6" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z6</div>
+            <span class="label-giocatore">Zona 6</span>
+          </div>
+          <div id="zona-1" class="slot-giocatore">
+            <div class="cerchio-giocatore">Z1</div>
+            <span class="label-giocatore">Zona 1</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLONNA 3: CAMPETTO VERTICALE & CONTROLLI -->
+      <section class="colonna-controlli">
+        <!-- Selettore Fondamentale -->
+        <div class="barra-fondamentali">
+          <button class="btn-fondamentale attivo" data-fond="battuta" onclick="app.fondamentaleSelezionato = 'battuta'; app.render();">BAT</button>
+          <button class="btn-fondamentale" data-fond="ricezione" onclick="app.fondamentaleSelezionato = 'ricezione'; app.render();">RIC</button>
+          <button class="btn-fondamentale" data-fond="alzata" onclick="app.fondamentaleSelezionato = 'alzata'; app.render();">ALZ</button>
+          <button class="btn-fondamentale" data-fond="attacco" onclick="app.fondamentaleSelezionato = 'attacco'; app.render();">ATT</button>
+          <button class="btn-fondamentale" data-fond="muro" onclick="app.fondamentaleSelezionato = 'muro'; app.render();">MUR</button>
+          <button class="btn-fondamentale" data-fond="difesa" onclick="app.fondamentaleSelezionato = 'difesa'; app.render();">DIF</button>
+        </div>
+
+        <!-- Campetto Verticale Arancione (#F39C12) per Traiettoria Colpi -->
+        <div class="campetto-container" title="Traccia la direzione del colpo con il dito">
+          <canvas id="canvas-campetto"></canvas>
+        </div>
+
+        <!-- Tastierino Valutazioni Standard (++, +, !, -, ==) -->
+        <div class="tastierino-valutazioni">
+          <button class="btn-valutazione btn-val-doppiopiu" onclick="app.registraEventoStandard('++')" title="Punto / Perfetto">++</button>
+          <button class="btn-valutazione btn-val-piu" onclick="app.registraEventoStandard('+')" title="Positivo">+</button>
+          <button class="btn-valutazione btn-val-neutro" onclick="app.registraEventoStandard('!')" title="Neutro">!</button>
+          <button class="btn-valutazione btn-val-meno" onclick="app.registraEventoStandard('-')" title="Negativo">-</button>
+          <button class="btn-valutazione btn-val-doppiomeno" onclick="app.registraEventoStandard('==')" title="Errore">==</button>
+        </div>
+
+        <!-- DUE TASTI SPECIALI ATTACCO -->
+        <div id="riga-speciali-attacco" class="riga-speciali-attacco">
+          <button class="btn-speciale btn-speciale-maniout" onclick="app.registraAttaccoManiOut()" title="Attacco tocca il muro ed esce: PUNTO NOSTRO!">
+            <span>🖐️ OUT</span> Mani Out
+          </button>
+          <button class="btn-speciale btn-speciale-toccato" onclick="app.registraAttaccoToccatoMuro()" title="Attacco tocca il muro e gli avversari rigiocano: PALLA VIVA!">
+            <span>🖐️ 🔄</span> Toccato Muro
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 3. BOTTOM BAR -->
+    <footer class="bottom-bar">
+      <button class="btn-bottom btn-annulla" onclick="app.annullaUltimaAzione()" title="Annulla Ultima Azione">
+        <span>↩</span> ANNULLA
+      </button>
+
+      <span id="ultimo-evento-label" class="ultimo-evento-label">Pronto per lo scout</span>
+
+      <div style="display:flex; gap:8px;">
+        <button class="btn-bottom" onclick="app.campoInvertito = !app.campoInvertito; app.render();" title="Inverti i lati del campo">
+          <span>⇄</span> Inverti Campo
+        </button>
+        <button class="btn-bottom" onclick="document.getElementById('modal-log').classList.add('visibile')" title="Visualizza Log Azioni">
+          <span>📋</span> Log Azioni
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- =========================================================
+       RUOTA SCOUT POPUP OVERLAY (Fedele al 100% allo screenshot tablet)
+       ========================================================= -->
+  <div id="ruota-scout-modal" class="ruota-overlay" onclick="if(event.target === this) app.chiudiRuota();">
+    
+    <!-- Top Bar Ruota (Scoreboard in trasparenza) -->
+    <div class="ruota-top-score">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:13px; font-weight:900; color:#1E3A3A;">CASA</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(-1, 0)">-</button>
+        <span id="ruota-punti-casa" class="score-text">0</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(1, 0)">+</button>
+      </div>
+
+      <div id="ruota-score-top" style="font-size:14px; font-weight:900; color:#FFFFFF; text-shadow:1px 1px 2px rgba(0,0,0,0.4);">
+        SET 1
+      </div>
+
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn-stepper" onclick="app.correggiPunti(0, -1)">-</button>
+        <span id="ruota-punti-ospite" class="score-text">0</span>
+        <button class="btn-stepper" onclick="app.correggiPunti(0, 1)">+</button>
+        <span style="font-size:13px; font-weight:900; color:#1E3A3A;">OSPITI</span>
+      </div>
+    </div>
+
+    <!-- Area Centrale con Ruota Scout e Card Speciale Attacco -->
+    <div class="ruota-center-area">
+      
+      <!-- HUD selezione corrente -->
+      <div id="ruota-hud-selection" class="ruota-hud-selection"></div>
+
+      <!-- Container Ruota Circolare con Canvas Interattivo -->
+      <div class="ruota-wheel-container">
+        <canvas id="canvas-ruota-interactive" width="520" height="520"></canvas>
+
+        <!-- Cerchio Giocatore al centro (#21 con anello azzurro) -->
+        <div class="ruota-center-circle" onclick="app.chiudiRuota()" title="Tocca per chiudere la ruota">
+          <span id="ruota-center-number" class="ruota-center-number">1</span>
+          <span class="ruota-center-hint">CHIUDI</span>
+        </div>
+      </div>
+
+      <!-- Card Laterale Destra per i 2 Tasti Speciali Attacco (NON copre la ruota!) -->
+      <div class="ruota-speciali-card">
+        <div class="speciali-card-header">
+          <span>💥</span> AZIONI ATTACCO SPECIALI
+        </div>
+
+        <button class="btn-speciale-card btn-maniout" onclick="app.registraAttaccoManiOut(); app.chiudiRuota();" title="Attacco tocca il muro ed esce: Punto Nostro!">
+          <span class="icon">🖐️ OUT</span>
+          <div class="text-col">
+            <span class="title">Mani Out (+1 pt)</span>
+            <span class="sub">Punto nostro e rotazione</span>
+          </div>
+        </button>
+
+        <button class="btn-speciale-card btn-toccato" onclick="app.registraAttaccoToccatoMuro(); app.chiudiRuota();" title="Attacco tocca il muro e gli avversari rigiocano: Azione continua!">
+          <span class="icon">🖐️ 🔄</span>
+          <div class="text-col">
+            <span class="title">Toccato Muro</span>
+            <span class="sub">Palla viva, rally continua</span>
+          </div>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Bottom Bar Ruota Scout (Ultima Azione e Undo rapido) -->
+    <div class="ruota-bottom-bar">
+      <div class="info-last">
+        <span style="color:rgba(255,255,255,0.7);">Ultima azione:</span>
+        <div id="ruota-last-info" style="display:flex; align-items:center; gap:8px;">
+          <span>Nessun evento</span>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn-bottom btn-annulla" onclick="app.annullaUltimaAzione(); app.render();" title="Annulla Ultima Azione">
+          <span>↩</span> Annulla
+        </button>
+        <button class="btn-bottom" onclick="app.chiudiRuota()" style="background:#444;" title="Chiudi Ruota">
+          <span>✕</span> Chiudi
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =========================================================
+       MODALE SOSTITUZIONI (Regola 8 Sostituzioni)
+       ========================================================= -->
+  <div id="modal-sostituzioni" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-titolo">Sostituzione Giocatore (Regola 8 Sostituzioni)</h3>
+        <button class="modal-close-btn" onclick="app.chiudiModalSostituzione()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="sost-info-conteggio" style="font-weight:900; color:#00E5FF; margin-bottom:14px; font-size:14px;"></p>
+
+        <label style="display:block; margin-bottom:6px; font-weight:bold;">Giocatore da sostituire (In Campo):</label>
+        <select id="sost-select-zona" style="width:100%; padding:10px; border-radius:6px; margin-bottom:16px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);"></select>
+
+        <label style="display:block; margin-bottom:6px; font-weight:bold;">Giocatore entrante (Dalla Panchina):</label>
+        <select id="sost-select-entrante" style="width:100%; padding:10px; border-radius:6px; margin-bottom:16px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="app.chiudiModalSostituzione()" style="background:#555;">Annulla</button>
+        <button class="btn-bottom" onclick="app.confermaSostituzione()" style="background:#00ADB5;">Conferma Cambio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE GESTIONE SQUADRA E PARTITA
+       ========================================================= -->
+  <div id="modal-gestione" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-titolo">Configurazione Partita e Squadre</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-gestione').classList.remove('visibile')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label style="display:block; margin-bottom:4px; font-weight:bold;">Nome Squadra Casa:</label>
+        <input id="input-nome-casa" type="text" value="Volley Club Pro" style="width:100%; padding:8px; border-radius:4px; margin-bottom:12px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+
+        <label style="display:block; margin-bottom:4px; font-weight:bold;">Nome Squadra Avversaria:</label>
+        <input id="input-nome-ospite" type="text" value="Polisportiva Riva" style="width:100%; padding:8px; border-radius:4px; margin-bottom:16px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+
+        <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin-bottom:16px;">
+
+        <button class="btn-bottom" style="width:100%; justify-content:center; background:#D32F2F; margin-bottom:8px;" onclick="if(confirm('Vuoi davvero resettare la partita e i punteggi?')){ localStorage.removeItem('quickscout_state'); location.reload(); }">
+          ⚠️ Resetta e Avvia Nuova Partita
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="
+          app.squadraCasa = document.getElementById('input-nome-casa').value || 'CASA';
+          app.squadraOspite = document.getElementById('input-nome-ospite').value || 'OSPITI';
+          app.salvaStato();
+          app.render();
+          document.getElementById('modal-gestione').classList.remove('visibile');
+        ">Salva Modifiche</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE LOG AZIONI
+       ========================================================= -->
+  <div id="modal-log" class="modal-overlay">
+    <div class="modal-box" style="max-width:700px;">
+      <div class="modal-header">
+        <h3 class="modal-titolo">Storico Azioni Partita</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-log').classList.remove('visibile')">✕</button>
+      </div>
+      <div class="modal-body" id="modal-log-body">
+        <p>Nessun evento ancora registrato.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="
+          const body = document.getElementById('modal-log-body');
+          body.innerHTML = '';
+          if (app.storicoEventi.length === 0) {
+            body.innerHTML = '<p>Nessun evento ancora registrato.</p>';
+          } else {
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.fontSize = '12px';
+            table.style.borderCollapse = 'collapse';
+            table.innerHTML = '<tr style=\'background:#0C8A80;\'><th>Set</th><th>Score</th><th>Atleta</th><th>Fond.</th><th>Val.</th><th>Speciale</th></tr>';
+            [...app.storicoEventi].reverse().forEach(ev => {
+              const tr = document.createElement('tr');
+              tr.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+              tr.innerHTML = `<td style='text-align:center; padding:6px;'>${ev.set}</td><td style='text-align:center; padding:6px;'>${ev.puntiCasa}-${ev.puntiOspite}</td><td style='padding:6px;'>#${ev.giocatore.numero} ${ev.giocatore.cognome}</td><td style='text-align:center; padding:6px;'>${ev.fondamentale.toUpperCase()}</td><td style='text-align:center; font-weight:bold; padding:6px;'>${ev.valutazione}</td><td style='color:#00E5FF; padding:6px;'>${ev.speciale || '-'}</td>`;
+              table.appendChild(tr);
+            });
+            body.appendChild(table);
+          }
+        ">Aggiorna Elenco</button>
+        <button class="btn-bottom" onclick="document.getElementById('modal-log').classList.remove('visibile')">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Librerie PDF Offline -->
+  <script src="libs/jspdf.umd.min.js"></script>
+  <script src="libs/jspdf.plugin.autotable.min.js"></script>
+  <!-- Motore App -->
+  <script src="app.js"></script>
+</body>
+</html>

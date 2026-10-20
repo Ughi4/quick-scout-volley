@@ -1,0 +1,1049 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #0FA89C; /* @color/campo originale */
+  color: #FFFFFF;
+}
+
+#app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* =========================================================
+   1. TOP BAR ORIGINALE
+   ========================================================= */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #0C8A80;
+  padding: 4px 14px;
+  height: 50px;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.top-bar-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.top-bar-btn img {
+  height: 38px;
+  object-fit: contain;
+}
+
+.btn-menu {
+  width: 38px;
+  height: 38px;
+  background-color: #08433E;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.btn-ruota-top {
+  background-color: #E05338;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+
+.btn-ruota-top:active {
+  transform: scale(0.95);
+}
+
+.btn-fullscreen-top {
+  background-color: #03534E;
+  color: #00E5FF;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.btn-fullscreen-top:active {
+  transform: scale(0.95);
+  background-color: #046c65;
+}
+
+.tabellone-squadra {
+  flex: 0 1 240px;
+  max-width: 240px;
+  min-width: 170px;
+  display: flex;
+  align-items: center;
+  background-color: #68C4C4; /* @color/tabelloni originale */
+  border-radius: 6px;
+  padding: 2px 8px;
+  height: 38px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.icon-palla {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.nome-squadra {
+  flex: 1;
+  color: #1E3A3A;
+  font-weight: 900;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-stepper {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #03534E;
+  color: white;
+  border: none;
+  font-weight: 900;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-stepper:active {
+  background-color: #0FA89C;
+}
+
+.punti-display {
+  font-size: 24px;
+  font-weight: 900;
+  color: #FFFFFF;
+  min-width: 32px;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.set-badge {
+  background-color: #03534E;
+  color: white;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-report-top {
+  background-color: #F39C12;
+  color: #1E3A3A;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  height: 38px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  transition: transform 0.1s;
+}
+
+.btn-report-top:active {
+  transform: scale(0.96);
+}
+
+.btn-report-top img {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* =========================================================
+   2. CORPO CENTRALE A 3 COLONNE
+   ========================================================= */
+.main-body {
+  flex: 1;
+  display: flex;
+  padding: 6px 12px;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* COLONNA 1: PANCHINA */
+.colonna-panchina {
+  display: flex;
+  height: 100%;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sostituzioni-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 52px;
+  height: 100%;
+}
+
+.capsula-sostituzioni {
+  width: 48px;
+  height: 84px;
+  background-image: url('assets/images/bkg_sost.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: top center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 11px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.capsula-sostituzioni:active {
+  transform: scale(0.95);
+}
+
+.sostituzioni-numero {
+  font-size: 24px;
+  font-weight: 900;
+  color: #03534E;
+  line-height: 1;
+}
+
+.sostituzioni-numero.alert {
+  color: #C62828;
+}
+
+.sostituzioni-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: #FFFFFF;
+  margin-top: 4px;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+}
+
+.sost-stepper-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.btn-mini-stepper {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #03534E;
+  color: white;
+  border: none;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box-panchina {
+  width: 86px;
+  height: 100%;
+  background-color: #0E7A71;
+  border: 3px solid #00776B; /* Bordo originale decompilato */
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  gap: 6px;
+}
+
+.panchina-timeout-area {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.img-timeout {
+  height: 20px;
+  object-fit: contain;
+}
+
+.panchina-titolo {
+  font-size: 11px;
+  font-weight: 900;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.panchina-lista {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.panchina-lista::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panchina-lista::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
+
+.atleta-panchina {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: #F39C12; /* Arancione originale riserve */
+  color: white;
+  font-weight: 900;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.1s;
+}
+
+.atleta-panchina:active {
+  transform: scale(0.92);
+}
+
+.btn-timeout {
+  background-color: #E67E22;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 8px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.btn-timeout:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* COLONNA 2: FORMAZIONE IN CAMPO (6 ZONE) */
+.colonna-formazione {
+  flex: 5;
+  background-color: #0E7A71;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 3px solid #00776B;
+  box-shadow: inset 0 0 14px rgba(0,0,0,0.25);
+  position: relative;
+}
+
+.campo-rete-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.barra-avversari {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.linea-rete-campo {
+  width: 100%;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, #FFFFFF 0px, #FFFFFF 12px, #27AE60 12px, #27AE60 24px);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.btn-avversario {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  gap: 2px;
+  transition: transform 0.1s;
+}
+
+.btn-avversario:active {
+  transform: scale(0.95);
+}
+
+.btn-avversario img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.btn-avversario span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.chip-libero {
+  background-color: #2ECC71;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+}
+
+.chip-libero:active {
+  transform: scale(0.95);
+}
+
+.riga-giocatori {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.linea-3-metri-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 4px 0;
+}
+
+.linea-3-metri-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 8px, transparent 8px, transparent 16px);
+  z-index: 1;
+}
+
+.slot-giocatore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 4px;
+}
+
+.cerchio-giocatore {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background-color: #E05338; /* Rosso originale @drawable/pallino_giocatore */
+  color: white;
+  font-size: 22px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+  border: 3.5px solid transparent;
+  transition: all 0.15s;
+}
+
+.cerchio-giocatore.libero {
+  background-color: #2ECC71;
+}
+
+.cerchio-giocatore.attivo {
+  background-color: #FFD700;
+  color: #000000;
+  border-color: #FFFFFF;
+  transform: scale(1.12);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.9);
+}
+
+.label-giocatore {
+  font-size: 11px;
+  font-weight: 900;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  background-color: rgba(0,0,0,0.25);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.barra-rotazione {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: #0E7A71;
+  padding: 3px 18px;
+  border-radius: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+.btn-rotazione {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 26px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.btn-rotazione:active {
+  transform: scale(0.85);
+}
+
+.rotazione-label {
+  font-size: 12px;
+  font-weight: 900;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.hint-ruota-badge {
+  background-color: rgba(0, 0, 0, 0.35);
+  color: #00E5FF;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* COLONNA 3: CAMPETTO VERTICALE & CONTROLLI */
+.colonna-controlli {
+  flex: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+}
+
+.barra-fondamentali {
+  display: flex;
+  background-color: #0C8A80;
+  border-radius: 6px;
+  padding: 3px;
+  justify-content: space-around;
+}
+
+.btn-fondamentale {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-fondamentale.attivo {
+  background-color: #F39C12;
+  color: #000000;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.campetto-container {
+  flex: 1;
+  background-color: #F39C12; /* @color/tabelloni originale per campetto */
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+#canvas-campetto {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tastierino-valutazioni {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-valutazione {
+  flex: 1;
+  height: 38px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s;
+}
+
+.btn-valutazione:active {
+  transform: scale(0.95);
+}
+
+.btn-val-doppiopiu { background-color: #2E7D32; }
+.btn-val-piu { background-color: #7CB342; }
+.btn-val-neutro { background-color: #FFA000; }
+.btn-val-meno { background-color: #E65100; }
+.btn-val-doppiomeno { background-color: #C62828; }
+
+.riga-speciali-attacco {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-speciale {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.1s;
+}
+
+.btn-speciale:active {
+  transform: scale(0.96);
+}
+
+.btn-speciale-maniout { background-color: #E91E63; }
+.btn-speciale-toccato { background-color: #26A69A; }
+
+/* =========================================================
+   3. BOTTOM BAR
+   ========================================================= */
+.bottom-bar {
+  background-color: #03534E;
+  height: 42px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-bottom {
+  background-color: #0C8A80;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.1s;
+}
+
+.btn-bottom:active {
+  transform: scale(0.96);
+}
+
+.btn-annulla {
+  background-color: #C62828;
+}
+
+.ultimo-evento-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-style: italic;
+  font-weight: 500;
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   4. RUOTA SCOUT INTERATTIVA POPUP (Fedele a tablet screenshot)
+   ========================================================= */
+.ruota-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  display: none;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.ruota-overlay.visibile {
+  display: flex;
+}
+
+/* Top bar della Ruota: Live score come nello screenshot del tablet */
+.ruota-top-score {
+  background-color: rgba(104, 196, 196, 0.95);
+  color: #1E3A3A;
+  padding: 6px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 900;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.ruota-top-score .score-text {
+  font-size: 18px;
+  color: #FFFFFF;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Area centrale della Ruota */
+.ruota-center-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ruota-wheel-container {
+  position: relative;
+  width: 520px;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#canvas-ruota-interactive {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* Cerchio centrale (#21 con anello azzurro) identico allo screenshot */
+.ruota-center-circle {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background-color: #E05338;
+  border: 4px solid #00ADB5;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  transition: transform 0.1s;
+}
+
+.ruota-center-circle:active {
+  transform: scale(0.93);
+}
+
+.ruota-center-number {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ruota-center-hint {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+/* Card laterale per i 2 tasti speciali di attacco (Mani Out e Toccato Muro) */
+.ruota-speciali-card {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(12, 90, 84, 0.95);
+  border: 2px solid #00E5FF;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  width: 220px;
+  z-index: 15;
+  backdrop-filter: blur(8px);
+}
+
+.speciali-card-header {
+  font-size: 11px;
+  font-weight: 900;
+  color: #00E5FF;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+}
+
+.btn-speciale-card {
+  border: none;
+  border-radius: 8px;
+  color: white;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.1s;
+}
+
+.btn-speciale-card:active {
+  transform: scale(0.96);
+}
+
+.btn-speciale-card .icon {
+  font-size: 18px;
+}
+
+.btn-speciale-card .text-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-speciale-card .title {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.btn-speciale-card .sub {
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+.btn-speciale-card.btn-maniout {
+  background-color: #E91E63;
+}
+
+.btn-speciale-card.btn-toccato {
+  background-color: #26A69A;
+}
+
+/* HUD di selezione corrente sopra la ruota */
+.ruota-hud-selection {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #00ADB5;
+  color: white;
+  padding: 6px 20px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+  display: none;
+  z-index: 15;
+}
+
+/* Bottom Bar della Ruota Scout identica all'originale */
+.ruota-bottom-bar {
+  background-color: rgba(3, 83, 78, 0.95);
+  height: 48px;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.3);
+}
+
+.ruota-bottom-bar .info-last {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.badge-mini-player {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #00ADB5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* =========================================================
+   5. STANDARD MODALS (SOSTITUZIONI, REPORT, GESTIONE)
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+
+.modal-overlay.visibile {
+  display: flex;
+}
+
+.modal-box {
+  background-color: #0E7A71;
+  border: 2px solid #00ADB5;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.modal-header {
+  background-color: #0C8A80;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-titolo {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 10px 16px;
+  background-color: #095E57;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
