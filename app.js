@@ -37,6 +37,7 @@ class ScoutApp {
     this.timeoutCasa = 0;
     this.timeoutOspite = 0;
     this.sostituzioniCasa = 0;
+    this.storicoSet = [];
 
     this.fondamentaleSelezionato = 'battuta';
     this.giocatoreAttivo = null;
@@ -103,6 +104,7 @@ class ScoutApp {
           this.formazione = data.formazioneIds.map(id => this.tuttiGiocatori.find(g => g.id === id) || this.tuttiGiocatori[0]);
         }
         this.storicoEventi = data.storicoEventi || [];
+        this.storicoSet = data.storicoSet || [];
         this.giocatoreAttivo = this.formazione[0];
       } catch (e) {
         console.error('Errore ripristino dati:', e);
@@ -124,7 +126,8 @@ class ScoutApp {
       sostituzioniCasa: this.sostituzioniCasa,
       tuttiGiocatori: this.tuttiGiocatori,
       formazioneIds: this.formazione.map(g => g.id),
-      storicoEventi: this.storicoEventi
+      storicoEventi: this.storicoEventi,
+      storicoSet: this.storicoSet || []
     };
     localStorage.setItem('quickscout_state', JSON.stringify(data));
   }
@@ -200,7 +203,15 @@ class ScoutApp {
   verificaFineSet() {
     const target = this.setCorrente === 5 ? 15 : 25;
     if ((this.puntiCasa >= target || this.puntiOspite >= target) && Math.abs(this.puntiCasa - this.puntiOspite) >= 2) {
-      if (this.puntiCasa > this.puntiOspite) {
+      const vintoCasa = this.puntiCasa > this.puntiOspite;
+      if (!this.storicoSet) this.storicoSet = [];
+      this.storicoSet.push({
+        set: this.setCorrente,
+        puntiCasa: this.puntiCasa,
+        puntiOspite: this.puntiOspite,
+        vintoCasa: vintoCasa
+      });
+      if (vintoCasa) {
         this.setVintiCasa++;
       } else {
         this.setVintiOspite++;
@@ -817,113 +828,413 @@ class ScoutApp {
   }
 
   // =========================================================
-  // REPORT PDF COMPLETO
+  // REPORT PDF COMPLETO (REPLICA ESATTA ORIGINALE QUICK SCOUT)
   // =========================================================
-  generaReportPDF() {
+  async generaReportPDF() {
     try {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-      // Intestazione con palette Quick Scout
-      doc.setFillColor(15, 168, 156); // #0FA89C
-      doc.rect(0, 0, 297, 24, 'F');
+      // 1. Precaricamento delle immagini ufficiali
+      const immaginiDaCaricare = {
+        logo: 'assets/images/logo_pdf.png',
+        icona_alzata: 'assets/images/icona_alzata_report.png',
+        icona_attacco: 'assets/images/icona_attacco_report.png',
+        icona_battuta: 'assets/images/icona_battuta_report.png',
+        icona_difesa: 'assets/images/icona_difesa_report.png',
+        icona_muro: 'assets/images/icona_muro_report.png',
+        icona_ricezione: 'assets/images/icona_ricezione_report.png',
+        marker_alzata: 'assets/images/punto_grafico_alzata_stampa.png',
+        marker_attacco: 'assets/images/punto_grafico_attacco_stampa.png',
+        marker_battuta: 'assets/images/punto_grafico_battuta_stampa.png',
+        marker_difesa: 'assets/images/punto_grafico_difesa_stampa.png',
+        marker_muro: 'assets/images/punto_grafico_muro_stampa.png',
+        marker_ricezione: 'assets/images/punto_grafico_ricezione_stampa.png'
+      };
+
+      const caricaImmagine = (src) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => {
+            console.warn("Impossibile caricare immagine per PDF:", src);
+            resolve(null);
+          };
+          img.src = src;
+        });
+      };
+
+      const chiavi = Object.keys(immaginiDaCaricare);
+      const promesse = chiavi.map(k => caricaImmagine(immaginiDaCaricare[k]));
+      const risultati = await Promise.all(promesse);
+      const imgMap = {};
+      chiavi.forEach((k, idx) => {
+        imgMap[k] = risultati[idx];
+      });
+
+      // 2. Definizione dei 6 fondamentali con colori e formule originali
+      const FONDAMENTALI = [
+        { id: 'alzata', nome: 'Alzata', colore: '#ee4600', formulaTipo: 'generale', iconKey: 'icona_alzata', markerKey: 'marker_alzata' },
+        { id: 'attacco', nome: 'Attacco', colore: '#e68300', formulaTipo: 'punto', iconKey: 'icona_attacco', markerKey: 'marker_attacco' },
+        { id: 'battuta', nome: 'Battuta', colore: '#f3c400', formulaTipo: 'generale', iconKey: 'icona_battuta', markerKey: 'marker_battuta' },
+        { id: 'difesa', nome: 'Difesa', colore: '#45c866', formulaTipo: 'generale', iconKey: 'icona_difesa', markerKey: 'marker_difesa' },
+        { id: 'muro', nome: 'Muro', colore: '#09ccff', formulaTipo: 'punto', iconKey: 'icona_muro', markerKey: 'marker_muro' },
+        { id: 'ricezione', nome: 'Ricezione', colore: '#a973ff', formulaTipo: 'generale', iconKey: 'icona_ricezione', markerKey: 'marker_ricezione' }
+      ];
+
+      const calcolaEfficienza = (formulaTipo, pp, p, o, m, mm, tot) => {
+        if (tot === 0) return 0;
+        if (formulaTipo === 'punto') {
+          // Attacco e Muro: (PP - MM) / tot * 100
+          return ((pp - mm) / tot) * 100;
+        } else {
+          // Alzata, Battuta, Difesa, Ricezione: ((PP + P) - MM) / tot * 100
+          return (((pp + p) - mm) / tot) * 100;
+        }
+      };
+
+      // 3. Statistiche complessive partita (per le 6 torte)
+      const matchStats = {};
+      FONDAMENTALI.forEach(f => {
+        const eventiFond = this.storicoEventi.filter(ev => ev.fondamentale === f.id);
+        let pp = 0, p = 0, o = 0, m = 0, mm = 0;
+        eventiFond.forEach(ev => {
+          if (ev.valutazione === '++') pp++;
+          else if (ev.valutazione === '+') p++;
+          else if (ev.valutazione === '!') o++;
+          else if (ev.valutazione === '-') m++;
+          else if (ev.valutazione === '==') mm++;
+        });
+        const tot = pp + p + o + m + mm;
+        const eff = calcolaEfficienza(f.formulaTipo, pp, p, o, m, mm, tot);
+        matchStats[f.id] = { eff, tot, pp, p, o, m, mm };
+      });
+
+      // 4. Statistiche per set (per il grafico a linee)
+      const maxSet = Math.min(5, Math.max(1, this.setCorrente, (this.setVintiCasa + this.setVintiOspite)));
+      const setData = {};
+      for (let s = 1; s <= maxSet; s++) {
+        setData[s] = {};
+        FONDAMENTALI.forEach(f => {
+          const evSet = this.storicoEventi.filter(ev => ev.set === s && ev.fondamentale === f.id);
+          let pp = 0, p = 0, o = 0, m = 0, mm = 0;
+          evSet.forEach(ev => {
+            if (ev.valutazione === '++') pp++;
+            else if (ev.valutazione === '+') p++;
+            else if (ev.valutazione === '!') o++;
+            else if (ev.valutazione === '-') m++;
+            else if (ev.valutazione === '==') mm++;
+          });
+          const tot = pp + p + o + m + mm;
+          if (tot > 0) {
+            const eff = calcolaEfficienza(f.formulaTipo, pp, p, o, m, mm, tot);
+            setData[s][f.id] = { eff, tot };
+          } else {
+            setData[s][f.id] = null;
+          }
+        });
+      }
+
+      // 5. Generatore Canvas del Grafico a Linee
+      const generaCanvasGraficoLinee = () => {
+        const cvs = document.createElement('canvas');
+        cvs.width = 1500;
+        cvs.height = 620;
+        const ctx = cvs.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+        const leftMargin = 130;
+        const rightMargin = 50;
+        const topMargin = 25;
+        const bottomMargin = 85;
+        const plotW = cvs.width - leftMargin - rightMargin;
+        const plotH = cvs.height - topMargin - bottomMargin;
+        const zeroY = topMargin + plotH / 2;
+
+        const yValues = [100, 80, 60, 40, 20, 0, -20, -40, -60, -80, -100];
+        ctx.font = '24px Helvetica, Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        yValues.forEach(val => {
+          const y = topMargin + ((100 - val) / 200) * plotH;
+          ctx.beginPath();
+          ctx.moveTo(leftMargin, y);
+          ctx.lineTo(leftMargin + plotW, y);
+          if (val === 0) {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3.5;
+          } else {
+            ctx.strokeStyle = '#cccccc';
+            ctx.lineWidth = 1.5;
+          }
+          ctx.stroke();
+
+          ctx.fillStyle = '#000000';
+          ctx.fillText(`${val}%`, leftMargin - 15, y);
+        });
+
+        const getXForSet = (s) => {
+          if (maxSet === 1) return leftMargin + plotW / 2;
+          const innerPadding = 90;
+          return leftMargin + innerPadding + (s - 1) * ((plotW - 2 * innerPadding) / (maxSet - 1));
+        };
+
+        for (let s = 1; s <= maxSet; s++) {
+          const x = getXForSet(s);
+
+          ctx.font = '22px sans-serif';
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('▼', x, zeroY + 4);
+
+          ctx.font = 'bold 24px Helvetica, Arial, sans-serif';
+          ctx.fillStyle = '#000000';
+          ctx.fillText(`Set ${s}`, x, cvs.height - 35);
+        }
+
+        FONDAMENTALI.forEach(f => {
+          const punti = [];
+          for (let s = 1; s <= maxSet; s++) {
+            const d = setData[s]?.[f.id];
+            if (d && d.tot > 0) {
+              const x = getXForSet(s);
+              const clampedEff = Math.max(-100, Math.min(100, d.eff));
+              const y = topMargin + ((100 - clampedEff) / 200) * plotH;
+              punti.push({ x, y, eff: d.eff });
+            }
+          }
+
+          if (punti.length > 0) {
+            if (punti.length >= 2) {
+              ctx.beginPath();
+              ctx.moveTo(punti[0].x, punti[0].y);
+              for (let i = 1; i < punti.length; i++) {
+                ctx.lineTo(punti[i].x, punti[i].y);
+              }
+              ctx.strokeStyle = f.colore;
+              ctx.lineWidth = 4;
+              ctx.stroke();
+            }
+
+            const mImg = imgMap[f.markerKey];
+            punti.forEach(p => {
+              if (mImg) {
+                ctx.drawImage(mImg, p.x - 14, p.y - 14, 28, 28);
+              } else {
+                ctx.fillStyle = f.colore;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 7, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            });
+          }
+        });
+
+        return cvs.toDataURL('image/png');
+      };
+
+      // 6. Generatore Canvas Donut Torta
+      const generaCanvasDonut = (f, eff) => {
+        const cvs = document.createElement('canvas');
+        cvs.width = 300;
+        cvs.height = 300;
+        const ctx = cvs.getContext('2d');
+        const cx = 150, cy = 150;
+        const R = 125;
+        const r = 80;
+        const ringW = R - r;
+        const midR = (R + r) / 2;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, midR, 0, 2 * Math.PI);
+        ctx.lineWidth = ringW;
+        ctx.strokeStyle = '#cccccc';
+        ctx.stroke();
+
+        const clampedEff = Math.max(-100, Math.min(100, eff));
+        if (clampedEff !== 0) {
+          const sweep = (Math.abs(clampedEff) / 100) * 2 * Math.PI;
+          const startA = -Math.PI / 2;
+          ctx.beginPath();
+          if (clampedEff > 0) {
+            ctx.arc(cx, cy, midR, startA, startA + sweep, false);
+          } else {
+            ctx.arc(cx, cy, midR, startA, startA - sweep, true);
+          }
+          ctx.lineWidth = ringW;
+          ctx.strokeStyle = f.colore;
+          ctx.stroke();
+        }
+
+        const iconImg = imgMap[f.iconKey];
+        if (iconImg) {
+          const iw = 70;
+          const ih = 70;
+          ctx.drawImage(iconImg, cx - iw / 2, cy - ih / 2, iw, ih);
+        }
+
+        return cvs.toDataURL('image/png');
+      };
+
+      // 7. COMPOSIZIONE PDF (A4 Portrait, 210 x 297 mm)
+
+      // HEADER: Box Punteggio a sinistra
+      doc.setFillColor(0, 119, 107); // #00776b (sfondoGrafico)
+      doc.roundedRect(15, 14, 23, 18, 1.5, 1.5, 'F');
 
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("QUICK SCOUT VOLLEY - REPORT PARTITA", 14, 15);
+      doc.setFontSize(18);
+      doc.text(`${this.setVintiCasa}-${this.setVintiOspite}`, 26.5, 23, { align: "center" });
 
-      doc.setFontSize(10);
-      doc.text(`Data: ${this.dataPartita}  |  Set ${this.setCorrente} (${this.puntiCasa} - ${this.puntiOspite})`, 180, 15);
-
-      doc.setFillColor(235, 248, 247);
-      doc.rect(14, 28, 269, 18, 'F');
-      doc.setTextColor(30, 58, 58);
-      doc.setFontSize(13);
-      doc.text(`${this.squadraCasa}  (Set vinti: ${this.setVintiCasa})  vs  ${this.squadraOspite}  (Set vinti: ${this.setVintiOspite})`, 20, 39);
-
-      const stats = {};
-      this.tuttiGiocatori.forEach(g => {
-        stats[g.id] = {
-          atleta: g,
-          puntiTot: 0,
-          battutaTot: 0, ace: 0, battutaErr: 0,
-          ricTot: 0, ricPos: 0, ricPrf: 0, ricErr: 0,
-          attTot: 0, attPunti: 0, attManiOut: 0, attToccatoMuro: 0, attErr: 0,
-          muroPunti: 0
-        };
-      });
-
-      this.storicoEventi.forEach(ev => {
-        const s = stats[ev.giocatore.id];
-        if (!s) return;
-
-        if (ev.fondamentale === 'battuta') {
-          s.battutaTot++;
-          if (ev.valutazione === '++') { s.ace++; s.puntiTot++; }
-          if (ev.valutazione === '==') s.battutaErr++;
-        } else if (ev.fondamentale === 'ricezione') {
-          s.ricTot++;
-          if (ev.valutazione === '++') s.ricPrf++;
-          if (ev.valutazione === '+') s.ricPos++;
-          if (ev.valutazione === '==') s.ricErr++;
-        } else if (ev.fondamentale === 'attacco') {
-          s.attTot++;
-          if (ev.speciale === 'MANI OUT') {
-            s.attManiOut++;
-            s.attPunti++;
-            s.puntiTot++;
-          } else if (ev.speciale === 'TOCCATO MURO (RIGIOCANO)') {
-            s.attToccatoMuro++;
+      // 5 pallini set nel box
+      const dotY = 28;
+      const dotStartX = 18;
+      const dotSpacing = 2.1;
+      for (let s = 1; s <= 5; s++) {
+        const dx = dotStartX + (s - 1) * dotSpacing;
+        if (s <= this.setVintiCasa + this.setVintiOspite) {
+          const setStorico = this.storicoSet?.[s - 1];
+          const vintoCasa = setStorico ? setStorico.vintoCasa : (s <= this.setVintiCasa);
+          if (vintoCasa) {
+            doc.setFillColor(104, 202, 196); // #68cac4 (pallinoSetVinto)
+            doc.circle(dx, dotY, 0.9, 'F');
           } else {
-            if (ev.valutazione === '++') { s.attPunti++; s.puntiTot++; }
-            if (ev.valutazione === '==') s.attErr++;
+            doc.setFillColor(71, 71, 71); // #474747 (pallinoSetPerso)
+            doc.circle(dx, dotY, 0.9, 'F');
           }
-        } else if (ev.fondamentale === 'muro') {
-          if (ev.valutazione === '++') { s.muroPunti++; s.puntiTot++; }
+        } else {
+          doc.setDrawColor(71, 71, 71); // pallinoSetNonGiocato (trasparente con bordo)
+          doc.setLineWidth(0.25);
+          doc.circle(dx, dotY, 0.9, 'S');
         }
-      });
+      }
 
-      const tableRows = this.tuttiGiocatori.map(g => {
-        const s = stats[g.id];
-        const ricPosPct = s.ricTot > 0 ? Math.round(((s.ricPos + s.ricPrf) / s.ricTot) * 100) + '%' : '-';
-        const ricPrfPct = s.ricTot > 0 ? Math.round((s.ricPrf / s.ricTot) * 100) + '%' : '-';
-        const attEffPct = s.attTot > 0 ? Math.round(((s.attPunti - s.attErr) / s.attTot) * 100) + '%' : '-';
+      // Nomi squadre e separatore rosso
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(this.squadraCasa, 42, 20.5);
 
-        return [
-          g.numero,
-          `${g.cognome} ${g.nome}`,
-          g.ruolo,
-          s.puntiTot,
-          s.battutaTot, s.battutaErr, s.ace,
-          s.ricTot, s.ricErr, ricPosPct, ricPrfPct,
-          s.attTot, s.attErr, s.attPunti, `${s.attManiOut}`, `${s.attToccatoMuro}`, attEffPct,
-          s.muroPunti
-        ];
-      });
+      doc.setDrawColor(254, 81, 0); // #fe5100 (separator_rosso_pdf)
+      doc.setLineWidth(0.6);
+      doc.line(42, 24, 150, 24);
 
-      doc.autoTable({
-        startY: 50,
-        head: [[
-          'N°', 'Giocatore', 'Ruolo', 'Punti',
-          'Bat', 'Err', 'Ace',
-          'Ric', 'Err', 'Pos%', 'Prf%',
-          'Att', 'Err', 'Punti', 'ManiOut', 'ToccMuro', 'Eff%',
-          'Muro'
-        ]],
-        body: tableRows,
-        theme: 'striped',
-        styles: { fontSize: 8, halign: 'center' },
-        headStyles: { fillColor: [12, 138, 128], textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-          1: { halign: 'left', fontStyle: 'bold' },
-          14: { fillColor: [248, 187, 208], fontStyle: 'bold' },
-          15: { fillColor: [178, 223, 219], fontStyle: 'bold' }
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(50, 50, 50);
+      doc.text(this.squadraOspite, 42, 30.5);
+
+      // Logo ufficiale Quick Scout Volley in alto a destra
+      if (imgMap.logo) {
+        doc.addImage(imgMap.logo, 'PNG', 154, 13, 41, 18);
+      }
+
+      // SEZIONE 1: Statistiche / Efficienza generale
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(254, 81, 0); // #fe5100 (rossoPdf)
+      doc.text("Statistiche", 15, 41);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Efficienza generale", 15, 48);
+
+      // Legenda a destra sopra il grafico
+      const legStartX = 72;
+      const legW = (195 - legStartX) / 6;
+      FONDAMENTALI.forEach((f, idx) => {
+        const lx = legStartX + idx * legW;
+        const markerImg = imgMap[f.markerKey];
+        if (markerImg) {
+          doc.addImage(markerImg, 'PNG', lx, 45.5, 3.2, 3.2);
         }
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(0, 0, 0);
+        doc.text(f.nome, lx + 4.2, 48.2);
       });
+
+      // Inserimento Grafico a Linee
+      const lineGraphImgData = generaCanvasGraficoLinee();
+      doc.addImage(lineGraphImgData, 'PNG', 15, 51, 180, 80);
+
+      // SEZIONE 2: Efficienza fondamentali
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Efficienza fondamentali", 15, 142);
+
+      // 6 Colonne Donut
+      const colWidth = 180 / 6; // 30 mm
+      FONDAMENTALI.forEach((f, idx) => {
+        const colLeft = 15 + idx * colWidth;
+        const colCenter = colLeft + colWidth / 2;
+        const stats = matchStats[f.id];
+
+        // 1. Donut
+        const donutImgData = generaCanvasDonut(f, stats.eff);
+        const donutSize = 25;
+        doc.addImage(donutImgData, 'PNG', colCenter - donutSize / 2, 147, donutSize, donutSize);
+
+        // 2. Percentuale grande in grassetto
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${Math.round(stats.eff)}%`, colCenter, 178, { align: "center" });
+
+        // 3. Colpi totali
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(40, 40, 40);
+        const colpiStr = `${stats.tot} ${stats.tot === 1 ? 'colpo' : 'colpi'}`;
+        doc.text(colpiStr, colCenter, 183.5, { align: "center" });
+
+        // 4. Linea divisoria nera
+        doc.setDrawColor(60, 60, 60);
+        doc.setLineWidth(0.3);
+        doc.line(colCenter - 6.5, 187, colCenter + 6.5, 187);
+
+        // 5. Elenco valutazioni
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(30, 30, 30);
+        let rigaY = 192.5;
+        doc.text(`${stats.pp} ++`, colCenter, rigaY, { align: "center" });
+        rigaY += 5;
+        doc.text(`${stats.p} +`, colCenter, rigaY, { align: "center" });
+        rigaY += 5;
+        doc.text(`${stats.o} !`, colCenter, rigaY, { align: "center" });
+        rigaY += 5;
+        doc.text(`${stats.m} -`, colCenter, rigaY, { align: "center" });
+        rigaY += 5;
+        doc.text(`${stats.mm} ==`, colCenter, rigaY, { align: "center" });
+      });
+
+      // FOOTER: Separatore rosso, pag. 1-1 e data corrente
+      doc.setDrawColor(254, 81, 0); // #fe5100
+      doc.setLineWidth(0.5);
+      doc.line(15, 282, 195, 282);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(110, 110, 110);
+      doc.text("pag. 1-1", 15, 287);
+
+      const oggi = new Date();
+      const dataFormattata = `${oggi.getDate().toString().padStart(2, '0')}/${(oggi.getMonth() + 1).toString().padStart(2, '0')}/${oggi.getFullYear()}`;
+      doc.text(dataFormattata, 195, 287, { align: "right" });
 
       doc.save(`QuickScout_Report_${this.squadraCasa.replace(/\s+/g, '_')}_vs_${this.squadraOspite.replace(/\s+/g, '_')}.pdf`);
+      return doc;
     } catch (e) {
+      console.error("Errore generazione PDF:", e);
       alert("Errore generazione PDF: " + e.message);
     }
   }
@@ -1365,5 +1676,5 @@ class ScoutApp {
 // Istanza globale
 let app;
 window.addEventListener('DOMContentLoaded', () => {
-  app = new ScoutApp();
+  window.app = app = new ScoutApp();
 });

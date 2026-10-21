@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quickscout-pwa-v2';
+const CACHE_NAME = 'quickscout-pwa-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -27,6 +27,18 @@ const ASSETS_TO_CACHE = [
   './assets/images/icona_attacco.png',
   './assets/images/icona_muro.png',
   './assets/images/icona_difesa.png',
+  './assets/images/icona_alzata_report.png',
+  './assets/images/icona_attacco_report.png',
+  './assets/images/icona_battuta_report.png',
+  './assets/images/icona_difesa_report.png',
+  './assets/images/icona_muro_report.png',
+  './assets/images/icona_ricezione_report.png',
+  './assets/images/punto_grafico_alzata_stampa.png',
+  './assets/images/punto_grafico_attacco_stampa.png',
+  './assets/images/punto_grafico_battuta_stampa.png',
+  './assets/images/punto_grafico_difesa_stampa.png',
+  './assets/images/punto_grafico_muro_stampa.png',
+  './assets/images/punto_grafico_ricezione_stampa.png',
   './assets/images/logo_pdf.png'
 ];
 
