@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quickscout-pwa-v1';
+const CACHE_NAME = 'quickscout-pwa-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,6 +8,8 @@ const ASSETS_TO_CACHE = [
   './libs/jspdf.umd.min.js',
   './libs/jspdf.plugin.autotable.min.js',
   './assets/images/app_icon.png',
+  './assets/images/app_icon_192.png',
+  './assets/images/app_icon_512.png',
   './assets/images/bkg_sost.png',
   './assets/images/btn_menu.png',
   './assets/images/btn_report_large.png',
