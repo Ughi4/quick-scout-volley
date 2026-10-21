@@ -1124,6 +1124,242 @@ class ScoutApp {
     }
     this.chiudiModalSostituzione();
   }
+
+  // =========================================================
+  // GESTIONE ROSTER, ATLETI E FORMAZIONE
+  // =========================================================
+  apriGestioneRoster(tab = 'roster') {
+    const modal = document.getElementById('modal-gestione');
+    if (!modal) return;
+    modal.classList.add('visibile');
+    this.cambiaTabGestione(tab);
+    this.renderRosterList();
+    this.renderFormazioneSelects();
+  }
+
+  cambiaTabGestione(tabName) {
+    const tabs = ['roster', 'formazione', 'partita'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const content = document.getElementById(`tab-gestione-${t}`);
+      if (btn) btn.classList.toggle('attivo', t === tabName);
+      if (content) content.style.display = (t === tabName) ? 'block' : 'none';
+    });
+    if (tabName === 'roster') this.renderRosterList();
+    if (tabName === 'formazione') this.renderFormazioneSelects();
+  }
+
+  renderRosterList() {
+    const container = document.getElementById('lista-roster-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const sorted = [...this.tuttiGiocatori].sort((a, b) => a.numero - b.numero);
+
+    sorted.forEach(g => {
+      const idxInCampo = this.formazione.findIndex(c => c.id === g.id);
+      const inCampo = idxInCampo !== -1;
+      const numZona = inCampo ? (idxInCampo === 0 ? 1 : idxInCampo === 1 ? 2 : idxInCampo === 2 ? 3 : idxInCampo === 3 ? 4 : idxInCampo === 4 ? 5 : 6) : null;
+
+      const riga = document.createElement('div');
+      riga.className = 'riga-atleta-roster';
+      riga.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="cerchio-giocatore ${g.ruolo === 'L' ? 'libero' : ''}" style="width:36px; height:36px; font-size:16px;">
+            ${g.numero}
+          </div>
+          <div>
+            <div style="font-weight:900; font-size:14px; color:white;">
+              ${g.cognome} ${g.nome || ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+              <span class="badge-ruolo badge-ruolo-${g.ruolo}">${g.ruolo}</span>
+              ${inCampo ? `<span class="badge-stato-campo">🏐 In Campo (Z${numZona})</span>` : `<span style="font-size:10px; opacity:0.75;">Panchina</span>`}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-bottom" style="padding:4px 8px; font-size:11px; background:#00ADB5;" onclick="app.caricaGiocatoreInForm(${g.id})" title="Modifica Giocatore">✏️</button>
+          <button class="btn-bottom" style="padding:4px 8px; font-size:11px; background:#C62828;" onclick="app.eliminaGiocatore(${g.id})" title="Elimina dal Roster">🗑️</button>
+        </div>
+      `;
+      container.appendChild(riga);
+    });
+  }
+
+  caricaGiocatoreInForm(id) {
+    const g = this.tuttiGiocatori.find(item => item.id === id);
+    if (!g) return;
+
+    document.getElementById('input-giocatore-id').value = g.id;
+    document.getElementById('input-giocatore-numero').value = g.numero;
+    document.getElementById('input-giocatore-cognome').value = g.cognome;
+    document.getElementById('input-giocatore-nome').value = g.nome || '';
+    document.getElementById('select-giocatore-ruolo').value = g.ruolo || 'S';
+
+    const titolo = document.getElementById('form-giocatore-titolo');
+    if (titolo) titolo.textContent = `✏️ Modifica Giocatore #${g.numero} ${g.cognome}`;
+
+    const btnAnnulla = document.getElementById('btn-annulla-modifica-giocatore');
+    if (btnAnnulla) btnAnnulla.style.display = 'inline-flex';
+  }
+
+  resetFormGiocatore() {
+    document.getElementById('input-giocatore-id').value = '';
+    document.getElementById('input-giocatore-numero').value = '';
+    document.getElementById('input-giocatore-cognome').value = '';
+    document.getElementById('input-giocatore-nome').value = '';
+    document.getElementById('select-giocatore-ruolo').value = 'S';
+
+    const titolo = document.getElementById('form-giocatore-titolo');
+    if (titolo) titolo.textContent = '➕ Aggiungi Nuovo Giocatore';
+
+    const btnAnnulla = document.getElementById('btn-annulla-modifica-giocatore');
+    if (btnAnnulla) btnAnnulla.style.display = 'none';
+  }
+
+  salvaGiocatore() {
+    const idInput = document.getElementById('input-giocatore-id').value;
+    const numInput = parseInt(document.getElementById('input-giocatore-numero').value);
+    const cognome = document.getElementById('input-giocatore-cognome').value.trim();
+    const nome = document.getElementById('input-giocatore-nome').value.trim();
+    const ruolo = document.getElementById('select-giocatore-ruolo').value;
+
+    if (isNaN(numInput) || numInput < 1 || numInput > 99) {
+      alert('Inserisci un numero di maglia valido (tra 1 e 99).');
+      return;
+    }
+    if (!cognome) {
+      alert('Inserisci il cognome dell\'atleta.');
+      return;
+    }
+
+    if (idInput) {
+      // Modifica esistente
+      const id = parseInt(idInput);
+      const esisteAltro = this.tuttiGiocatori.find(g => g.id !== id && g.numero === numInput);
+      if (esisteAltro) {
+        alert(`Il numero #${numInput} è già utilizzato da ${esisteAltro.cognome}.`);
+        return;
+      }
+      const g = this.tuttiGiocatori.find(item => item.id === id);
+      if (g) {
+        g.numero = numInput;
+        g.cognome = cognome;
+        g.nome = nome;
+        g.ruolo = ruolo;
+      }
+    } else {
+      // Nuovo giocatore
+      const esisteGia = this.tuttiGiocatori.find(g => g.numero === numInput);
+      if (esisteGia) {
+        alert(`Il numero #${numInput} è già presente nel roster (${esisteGia.cognome}).`);
+        return;
+      }
+      const nuovoId = Date.now();
+      this.tuttiGiocatori.push({
+        id: nuovoId,
+        numero: numInput,
+        cognome: cognome,
+        nome: nome,
+        ruolo: ruolo
+      });
+    }
+
+    this.salvaStato();
+    this.render();
+    this.renderRosterList();
+    this.renderFormazioneSelects();
+    this.resetFormGiocatore();
+  }
+
+  eliminaGiocatore(id) {
+    if (this.tuttiGiocatori.length <= 6) {
+      alert('Non puoi avere meno di 6 giocatori nel roster della squadra!');
+      return;
+    }
+
+    const g = this.tuttiGiocatori.find(item => item.id === id);
+    if (!g) return;
+
+    if (!confirm(`Sei sicuro di voler eliminare #${g.numero} ${g.cognome} dal roster?`)) {
+      return;
+    }
+
+    // Se il giocatore è in campo, sostituiscilo con la prima riserva disponibile
+    const idxCampo = this.formazione.findIndex(c => c.id === id);
+    if (idxCampo !== -1) {
+      const riserva = this.tuttiGiocatori.find(item => item.id !== id && !this.formazione.some(c => c.id === item.id));
+      if (riserva) {
+        this.formazione[idxCampo] = riserva;
+      }
+    }
+
+    this.tuttiGiocatori = this.tuttiGiocatori.filter(item => item.id !== id);
+    if (this.giocatoreAttivo?.id === id) {
+      this.giocatoreAttivo = this.formazione[0];
+    }
+
+    this.salvaStato();
+    this.render();
+    this.renderRosterList();
+    this.renderFormazioneSelects();
+  }
+
+  renderFormazioneSelects() {
+    const zoneKeys = [
+      { idSel: 'setup-zona-1', idx: 0, label: 'Zona 1 (Battuta)' },
+      { idSel: 'setup-zona-2', idx: 1, label: 'Zona 2 (Avanti Dx)' },
+      { idSel: 'setup-zona-3', idx: 2, label: 'Zona 3 (Centro)' },
+      { idSel: 'setup-zona-4', idx: 3, label: 'Zona 4 (Avanti Sx)' },
+      { idSel: 'setup-zona-5', idx: 4, label: 'Zona 5 (Difesa Sx)' },
+      { idSel: 'setup-zona-6', idx: 5, label: 'Zona 6 (Difesa Centro)' }
+    ];
+
+    zoneKeys.forEach(z => {
+      const select = document.getElementById(z.idSel);
+      if (!select) return;
+      select.innerHTML = '';
+
+      const attuale = this.formazione[z.idx];
+
+      this.tuttiGiocatori.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = `#${g.numero} ${g.cognome} (${g.ruolo})`;
+        if (attuale && attuale.id === g.id) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+    });
+  }
+
+  applicaFormazioneIniziale() {
+    const idZ1 = parseInt(document.getElementById('setup-zona-1').value);
+    const idZ2 = parseInt(document.getElementById('setup-zona-2').value);
+    const idZ3 = parseInt(document.getElementById('setup-zona-3').value);
+    const idZ4 = parseInt(document.getElementById('setup-zona-4').value);
+    const idZ5 = parseInt(document.getElementById('setup-zona-5').value);
+    const idZ6 = parseInt(document.getElementById('setup-zona-6').value);
+
+    const ids = [idZ1, idZ2, idZ3, idZ4, idZ5, idZ6];
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size < 6) {
+      alert('Attenzione: un giocatore non può essere schierato in più zone contemporaneamente! Seleziona 6 giocatori differenti.');
+      return;
+    }
+
+    const nuovaFormazione = ids.map(id => this.tuttiGiocatori.find(g => g.id === id));
+    this.formazione = nuovaFormazione;
+    this.giocatoreAttivo = this.formazione[0];
+
+    this.salvaStato();
+    this.render();
+    this.renderRosterList();
+    alert('Formazione iniziale applicata con successo!');
+    document.getElementById('modal-gestione').classList.remove('visibile');
+  }
 }
 
 // Istanza globale

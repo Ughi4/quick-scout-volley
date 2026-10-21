@@ -980,7 +980,7 @@ html, body {
 }
 
 /* =========================================================
-   5. STANDARD MODALS (SOSTITUZIONI, REPORT, GESTIONE)
+   5. STANDARD MODALS & GESTIONE ROSTER / SQUADRA
    ========================================================= */
 .modal-overlay {
   position: fixed;
@@ -1004,9 +1004,9 @@ html, body {
   background-color: #0E7A71;
   border: 2px solid #00ADB5;
   border-radius: 10px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
+  width: 92%;
+  max-width: 680px;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
@@ -1032,6 +1032,139 @@ html, body {
   color: white;
   font-size: 20px;
   cursor: pointer;
+}
+
+/* Tabs di gestione */
+.gestione-tabs {
+  display: flex;
+  background-color: #074944;
+  border-bottom: 2px solid #00ADB5;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab-btn.attivo {
+  color: #00E5FF;
+  background-color: #0C8A80;
+  border-bottom: 3px solid #00E5FF;
+}
+
+.card-add-giocatore {
+  background-color: #084944;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.form-grid-giocatore {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 3px;
+  color: #E0F2F1;
+}
+
+.lista-roster-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.riga-atleta-roster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #095E57;
+  border-radius: 6px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.badge-ruolo {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  color: white;
+}
+.badge-ruolo-P { background-color: #E67E22; }
+.badge-ruolo-S { background-color: #3498DB; }
+.badge-ruolo-C { background-color: #9B59B6; }
+.badge-ruolo-O { background-color: #E74C3C; }
+.badge-ruolo-L { background-color: #2ECC71; }
+
+.badge-stato-campo {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: rgba(0, 229, 255, 0.2);
+  color: #00E5FF;
+}
+
+.formazione-setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.setup-slot label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.select-setup-zona {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: #0C8A80;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+}
+
+.btn-roster-top {
+  background-color: #00ADB5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+}
+
+.btn-roster-top:active {
+  transform: scale(0.95);
 }
 
 .modal-body {
