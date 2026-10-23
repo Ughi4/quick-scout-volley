@@ -1619,12 +1619,12 @@ class ScoutApp {
 
   renderFormazioneSelects() {
     const zoneKeys = [
-      { idSel: 'setup-zona-1', idx: 0, label: 'Zona 1 (Battuta)' },
-      { idSel: 'setup-zona-2', idx: 1, label: 'Zona 2 (Avanti Dx)' },
-      { idSel: 'setup-zona-3', idx: 2, label: 'Zona 3 (Centro)' },
-      { idSel: 'setup-zona-4', idx: 3, label: 'Zona 4 (Avanti Sx)' },
-      { idSel: 'setup-zona-5', idx: 4, label: 'Zona 5 (Difesa Sx)' },
-      { idSel: 'setup-zona-6', idx: 5, label: 'Zona 6 (Difesa Centro)' }
+      { idSel: 'setup-zona-1', idx: 0, label: 'Zona 1' },
+      { idSel: 'setup-zona-2', idx: 1, label: 'Zona 2' },
+      { idSel: 'setup-zona-3', idx: 2, label: 'Zona 3' },
+      { idSel: 'setup-zona-4', idx: 3, label: 'Zona 4' },
+      { idSel: 'setup-zona-5', idx: 4, label: 'Zona 5' },
+      { idSel: 'setup-zona-6', idx: 5, label: 'Zona 6' }
     ];
 
     zoneKeys.forEach(z => {
@@ -1637,7 +1637,7 @@ class ScoutApp {
       this.tuttiGiocatori.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.id;
-        opt.textContent = `#${g.numero} ${g.cognome} (${g.ruolo})`;
+        opt.textContent = `#${g.numero} ${g.cognome}`;
         if (attuale && attuale.id === g.id) {
           opt.selected = true;
         }
