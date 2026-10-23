@@ -23,8 +23,8 @@ class ScoutApp {
   constructor() {
     this.maxSostituzioni = 8; // Regola 8 sostituzioni per set
 
-    this.squadraCasa = "Volley Club Pro";
-    this.squadraOspite = "Polisportiva Riva";
+    this.squadraCasa = "CASA";
+    this.squadraOspite = "OSPITI";
     this.dataPartita = new Date().toLocaleDateString('it-IT');
 
     this.puntiCasa = 0;
@@ -46,28 +46,30 @@ class ScoutApp {
     this.numeroPunto = 1;
     this.numeroScambio = 0;
 
-    // Roster 10 atleti
+    // Roster predefinito (12 atleti numerati, senza nomi fittizi)
     this.tuttiGiocatori = [
-      { id: 1, numero: 1, nome: 'Marco', cognome: 'Rossi', ruolo: 'P' },
-      { id: 2, numero: 4, nome: 'Luca', cognome: 'Bianchi', ruolo: 'S' },
-      { id: 3, numero: 7, nome: 'Matteo', cognome: 'Ferrari', ruolo: 'C' },
-      { id: 4, numero: 9, nome: 'Andrea', cognome: 'Esposito', ruolo: 'O' },
-      { id: 5, numero: 10, nome: 'Davide', cognome: 'Romano', ruolo: 'S' },
-      { id: 6, numero: 13, nome: 'Gabriele', cognome: 'Colombo', ruolo: 'C' },
-      { id: 7, numero: 16, nome: 'Simone', cognome: 'Ricci', ruolo: 'L' },
-      { id: 8, numero: 2, nome: 'Filippo', cognome: 'Marino', ruolo: 'P' },
-      { id: 9, numero: 11, nome: 'Lorenzo', cognome: 'Greco', ruolo: 'S' },
-      { id: 10, numero: 14, nome: 'Edoardo', cognome: 'Bruno', ruolo: 'C' }
+      { id: 1, numero: 1, nome: '', cognome: '', ruolo: 'P' },
+      { id: 2, numero: 2, nome: '', cognome: '', ruolo: 'S' },
+      { id: 3, numero: 3, nome: '', cognome: '', ruolo: 'C' },
+      { id: 4, numero: 4, nome: '', cognome: '', ruolo: 'O' },
+      { id: 5, numero: 5, nome: '', cognome: '', ruolo: 'S' },
+      { id: 6, numero: 6, nome: '', cognome: '', ruolo: 'C' },
+      { id: 7, numero: 7, nome: '', cognome: '', ruolo: 'L' },
+      { id: 8, numero: 8, nome: '', cognome: '', ruolo: 'P' },
+      { id: 9, numero: 9, nome: '', cognome: '', ruolo: 'S' },
+      { id: 10, numero: 10, nome: '', cognome: '', ruolo: 'C' },
+      { id: 11, numero: 11, nome: '', cognome: '', ruolo: 'O' },
+      { id: 12, numero: 12, nome: '', cognome: '', ruolo: 'L' }
     ];
 
     // Formazione campo 6 zone [Z1, Z2, Z3, Z4, Z5, Z6]
     this.formazione = [
-      this.tuttiGiocatori[0], // Z1 (Servizio)
-      this.tuttiGiocatori[1], // Z2
-      this.tuttiGiocatori[2], // Z3
-      this.tuttiGiocatori[3], // Z4
-      this.tuttiGiocatori[4], // Z5
-      this.tuttiGiocatori[5]  // Z6
+      this.tuttiGiocatori[0], // Z1 (Servizio) -> #1
+      this.tuttiGiocatori[1], // Z2 -> #2
+      this.tuttiGiocatori[2], // Z3 -> #3
+      this.tuttiGiocatori[3], // Z4 -> #4
+      this.tuttiGiocatori[4], // Z5 -> #5
+      this.tuttiGiocatori[5]  // Z6 -> #6
     ];
 
     this.giocatoreAttivo = this.formazione[0];
@@ -89,8 +91,11 @@ class ScoutApp {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        this.squadraCasa = data.squadraCasa || this.squadraCasa;
-        this.squadraOspite = data.squadraOspite || this.squadraOspite;
+        if (data.squadraCasa === "Volley Club Pro") data.squadraCasa = "CASA";
+        if (data.squadraOspite === "Polisportiva Riva") data.squadraOspite = "OSPITI";
+
+        this.squadraCasa = data.squadraCasa || "CASA";
+        this.squadraOspite = data.squadraOspite || "OSPITI";
         this.puntiCasa = data.puntiCasa ?? 0;
         this.puntiOspite = data.puntiOspite ?? 0;
         this.setCorrente = data.setCorrente ?? 1;
@@ -99,11 +104,26 @@ class ScoutApp {
         this.haPallaCasa = data.haPallaCasa ?? true;
         this.timeoutCasa = data.timeoutCasa ?? 0;
         this.sostituzioniCasa = data.sostituzioniCasa ?? 0;
-        this.tuttiGiocatori = data.tuttiGiocatori || this.tuttiGiocatori;
-        if (data.formazioneIds) {
+
+        const dummySurnames = ['Rossi', 'Bianchi', 'Ferrari', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno'];
+        if (data.tuttiGiocatori && Array.isArray(data.tuttiGiocatori)) {
+          this.tuttiGiocatori = data.tuttiGiocatori.map(g => {
+            if (dummySurnames.includes(g.cognome)) {
+              return { ...g, nome: '', cognome: '' };
+            }
+            return g;
+          });
+        }
+        if (data.formazioneIds && Array.isArray(data.formazioneIds)) {
           this.formazione = data.formazioneIds.map(id => this.tuttiGiocatori.find(g => g.id === id) || this.tuttiGiocatori[0]);
         }
         this.storicoEventi = data.storicoEventi || [];
+        this.storicoEventi.forEach(ev => {
+          if (ev.giocatore && dummySurnames.includes(ev.giocatore.cognome)) {
+            ev.giocatore.cognome = '';
+            ev.giocatore.nome = '';
+          }
+        });
         this.storicoSet = data.storicoSet || [];
         this.giocatoreAttivo = this.formazione[0];
       } catch (e) {
@@ -1301,7 +1321,8 @@ class ScoutApp {
         const d = document.createElement('div');
         d.className = 'atleta-panchina';
         d.textContent = g.numero;
-        d.title = `${g.cognome} (${g.ruolo})`;
+        const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+        d.title = nominativo ? `#${g.numero} ${nominativo}` : `#${g.numero}`;
         d.onclick = () => this.apriModalSostituzione(g);
         panchinaList.appendChild(d);
       });
@@ -1332,7 +1353,8 @@ class ScoutApp {
       }
 
       if (label) {
-        label.textContent = g ? `${g.cognome} (${g.ruolo})` : `Zona ${z.numZona}`;
+        const nominativo = g ? [g.cognome, g.nome].filter(Boolean).join(' ') : '';
+        label.textContent = nominativo;
       }
 
       el.onclick = () => {
@@ -1370,7 +1392,9 @@ class ScoutApp {
     if (this.storicoEventi.length > 0) {
       const u = this.storicoEventi[this.storicoEventi.length - 1];
       const spec = u.speciale ? ` [${u.speciale}]` : '';
-      testoUltima = `#${u.giocatore.numero} ${u.giocatore.cognome} • ${u.fondamentale.toUpperCase()} (${u.valutazione})${spec}`;
+      const nominativo = [u.giocatore.cognome, u.giocatore.nome].filter(Boolean).join(' ');
+      const pStr = nominativo ? `#${u.giocatore.numero} ${nominativo}` : `#${u.giocatore.numero}`;
+      testoUltima = `${pStr} • ${u.fondamentale.toUpperCase()} (${u.valutazione})${spec}`;
       miniBadge = u.giocatore.numero;
     }
 
@@ -1397,7 +1421,8 @@ class ScoutApp {
     this.formazione.forEach((g, idx) => {
       const opt = document.createElement('option');
       opt.value = idx;
-      opt.textContent = `Zona ${idx === 0 ? 1 : idx === 1 ? 2 : idx === 2 ? 3 : idx === 3 ? 4 : idx === 4 ? 5 : 6}: #${g.numero} ${g.cognome} (${g.ruolo})`;
+      const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+      opt.textContent = `Zona ${idx === 0 ? 1 : idx === 1 ? 2 : idx === 2 ? 3 : idx === 3 ? 4 : idx === 4 ? 5 : 6}: #${g.numero}${nominativo ? ' ' + nominativo : ''}`;
       selectZona.appendChild(opt);
     });
 
@@ -1406,7 +1431,8 @@ class ScoutApp {
     riserve.forEach(g => {
       const opt = document.createElement('option');
       opt.value = g.id;
-      opt.textContent = `#${g.numero} ${g.cognome} ${g.nome} (${g.ruolo})`;
+      const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+      opt.textContent = `#${g.numero}${nominativo ? ' ' + nominativo : ''}`;
       if (atletaPanchinaSelezionato && atletaPanchinaSelezionato.id === g.id) {
         opt.selected = true;
       }
@@ -1458,6 +1484,12 @@ class ScoutApp {
     });
     if (tabName === 'roster') this.renderRosterList();
     if (tabName === 'formazione') this.renderFormazioneSelects();
+    if (tabName === 'partita') {
+      const inCasa = document.getElementById('input-nome-casa');
+      const inOspite = document.getElementById('input-nome-ospite');
+      if (inCasa) inCasa.value = this.squadraCasa;
+      if (inOspite) inOspite.value = this.squadraOspite;
+    }
   }
 
   renderRosterList() {
@@ -1471,6 +1503,7 @@ class ScoutApp {
       const idxInCampo = this.formazione.findIndex(c => c.id === g.id);
       const inCampo = idxInCampo !== -1;
       const numZona = inCampo ? (idxInCampo === 0 ? 1 : idxInCampo === 1 ? 2 : idxInCampo === 2 ? 3 : idxInCampo === 3 ? 4 : idxInCampo === 4 ? 5 : 6) : null;
+      const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
 
       const riga = document.createElement('div');
       riga.className = 'riga-atleta-roster';
@@ -1481,7 +1514,7 @@ class ScoutApp {
           </div>
           <div>
             <div style="font-weight:900; font-size:14px; color:white;">
-              ${g.cognome} ${g.nome || ''}
+              ${nominativo || `Giocatore #${g.numero}`}
             </div>
             <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
               <span class="badge-ruolo badge-ruolo-${g.ruolo}">${g.ruolo}</span>
@@ -1504,12 +1537,13 @@ class ScoutApp {
 
     document.getElementById('input-giocatore-id').value = g.id;
     document.getElementById('input-giocatore-numero').value = g.numero;
-    document.getElementById('input-giocatore-cognome').value = g.cognome;
+    document.getElementById('input-giocatore-cognome').value = g.cognome || '';
     document.getElementById('input-giocatore-nome').value = g.nome || '';
     document.getElementById('select-giocatore-ruolo').value = g.ruolo || 'S';
 
     const titolo = document.getElementById('form-giocatore-titolo');
-    if (titolo) titolo.textContent = `✏️ Modifica Giocatore #${g.numero} ${g.cognome}`;
+    const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+    if (titolo) titolo.textContent = nominativo ? `✏️ Modifica Giocatore #${g.numero} ${nominativo}` : `✏️ Modifica Giocatore #${g.numero}`;
 
     const btnAnnulla = document.getElementById('btn-annulla-modifica-giocatore');
     if (btnAnnulla) btnAnnulla.style.display = 'inline-flex';
@@ -1540,17 +1574,14 @@ class ScoutApp {
       alert('Inserisci un numero di maglia valido (tra 1 e 99).');
       return;
     }
-    if (!cognome) {
-      alert('Inserisci il cognome dell\'atleta.');
-      return;
-    }
 
     if (idInput) {
       // Modifica esistente
       const id = parseInt(idInput);
       const esisteAltro = this.tuttiGiocatori.find(g => g.id !== id && g.numero === numInput);
       if (esisteAltro) {
-        alert(`Il numero #${numInput} è già utilizzato da ${esisteAltro.cognome}.`);
+        const nomeAltro = [esisteAltro.cognome, esisteAltro.nome].filter(Boolean).join(' ') || `#${esisteAltro.numero}`;
+        alert(`Il numero #${numInput} è già utilizzato da ${nomeAltro}.`);
         return;
       }
       const g = this.tuttiGiocatori.find(item => item.id === id);
@@ -1564,7 +1595,8 @@ class ScoutApp {
       // Nuovo giocatore
       const esisteGia = this.tuttiGiocatori.find(g => g.numero === numInput);
       if (esisteGia) {
-        alert(`Il numero #${numInput} è già presente nel roster (${esisteGia.cognome}).`);
+        const nomeGia = [esisteGia.cognome, esisteGia.nome].filter(Boolean).join(' ') || `#${esisteGia.numero}`;
+        alert(`Il numero #${numInput} è già presente nel roster (${nomeGia}).`);
         return;
       }
       const nuovoId = Date.now();
@@ -1593,7 +1625,9 @@ class ScoutApp {
     const g = this.tuttiGiocatori.find(item => item.id === id);
     if (!g) return;
 
-    if (!confirm(`Sei sicuro di voler eliminare #${g.numero} ${g.cognome} dal roster?`)) {
+    const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+    const desc = nominativo ? `#${g.numero} ${nominativo}` : `#${g.numero}`;
+    if (!confirm(`Sei sicuro di voler eliminare ${desc} dal roster?`)) {
       return;
     }
 
@@ -1637,7 +1671,8 @@ class ScoutApp {
       this.tuttiGiocatori.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.id;
-        opt.textContent = `#${g.numero} ${g.cognome}`;
+        const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+        opt.textContent = nominativo ? `#${g.numero} ${nominativo}` : `#${g.numero}`;
         if (attuale && attuale.id === g.id) {
           opt.selected = true;
         }
