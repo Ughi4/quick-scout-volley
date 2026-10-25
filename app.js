@@ -76,6 +76,10 @@ class ScoutApp {
     this.storicoEventi = [];
     this.traiettoria = { xInizio: null, yInizio: null, xFine: null, yFine: null };
 
+    this.liberoSostituitoId = null;
+    this.autoLiberoRotazione = true; // Uscita automatica del Libero da prima linea (Regola FIVB)
+    this.autoLiberoEntrata = false; // Entrata automatica del Libero in seconda linea
+
     this.initLocalStorage();
     this.initCanvasCampetto();
     this.initRuotaInteractive();
@@ -87,6 +91,28 @@ class ScoutApp {
   // PERSISTENZA LOCAL STORAGE
   // =========================================================
   initLocalStorage() {
+    // 1. Ripristina il Roster permanente (se salvato in precedenza)
+    const savedRoster = localStorage.getItem('quickscout_roster');
+    if (savedRoster) {
+      try {
+        const rData = JSON.parse(savedRoster);
+        if (rData.squadraCasa && rData.squadraCasa !== "Volley Club Pro") {
+          this.squadraCasa = rData.squadraCasa;
+        }
+        if (rData.tuttiGiocatori && Array.isArray(rData.tuttiGiocatori) && rData.tuttiGiocatori.length >= 6) {
+          this.tuttiGiocatori = rData.tuttiGiocatori;
+        }
+        if (rData.formazioneIds && Array.isArray(rData.formazioneIds)) {
+          this.formazione = rData.formazioneIds.map(id => this.tuttiGiocatori.find(g => g.id === id) || this.tuttiGiocatori[0]);
+        }
+        if (rData.autoLiberoRotazione !== undefined) this.autoLiberoRotazione = rData.autoLiberoRotazione;
+        if (rData.autoLiberoEntrata !== undefined) this.autoLiberoEntrata = rData.autoLiberoEntrata;
+      } catch (e) {
+        console.error('Errore ripristino roster permanente:', e);
+      }
+    }
+
+    // 2. Ripristina lo stato della partita corrente (se presente)
     const saved = localStorage.getItem('quickscout_state');
     if (saved) {
       try {
@@ -94,8 +120,8 @@ class ScoutApp {
         if (data.squadraCasa === "Volley Club Pro") data.squadraCasa = "CASA";
         if (data.squadraOspite === "Polisportiva Riva") data.squadraOspite = "OSPITI";
 
-        this.squadraCasa = data.squadraCasa || "CASA";
-        this.squadraOspite = data.squadraOspite || "OSPITI";
+        this.squadraCasa = data.squadraCasa || this.squadraCasa;
+        this.squadraOspite = data.squadraOspite || this.squadraOspite;
         this.puntiCasa = data.puntiCasa ?? 0;
         this.puntiOspite = data.puntiOspite ?? 0;
         this.setCorrente = data.setCorrente ?? 1;
@@ -104,6 +130,9 @@ class ScoutApp {
         this.haPallaCasa = data.haPallaCasa ?? true;
         this.timeoutCasa = data.timeoutCasa ?? 0;
         this.sostituzioniCasa = data.sostituzioniCasa ?? 0;
+        this.liberoSostituitoId = data.liberoSostituitoId ?? null;
+        if (data.autoLiberoRotazione !== undefined) this.autoLiberoRotazione = data.autoLiberoRotazione;
+        if (data.autoLiberoEntrata !== undefined) this.autoLiberoEntrata = data.autoLiberoEntrata;
 
         const dummySurnames = ['Rossi', 'Bianchi', 'Ferrari', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno'];
         if (data.tuttiGiocatori && Array.isArray(data.tuttiGiocatori)) {
@@ -132,6 +161,21 @@ class ScoutApp {
     }
   }
 
+  salvaRosterPermanente() {
+    try {
+      const data = {
+        squadraCasa: this.squadraCasa,
+        tuttiGiocatori: this.tuttiGiocatori,
+        formazioneIds: this.formazione.map(g => g.id),
+        autoLiberoRotazione: this.autoLiberoRotazione,
+        autoLiberoEntrata: this.autoLiberoEntrata
+      };
+      localStorage.setItem('quickscout_roster', JSON.stringify(data));
+    } catch (e) {
+      console.error('Errore salvataggio roster permanente:', e);
+    }
+  }
+
   salvaStato() {
     const data = {
       squadraCasa: this.squadraCasa,
@@ -146,10 +190,14 @@ class ScoutApp {
       sostituzioniCasa: this.sostituzioniCasa,
       tuttiGiocatori: this.tuttiGiocatori,
       formazioneIds: this.formazione.map(g => g.id),
+      liberoSostituitoId: this.liberoSostituitoId,
+      autoLiberoRotazione: this.autoLiberoRotazione,
+      autoLiberoEntrata: this.autoLiberoEntrata,
       storicoEventi: this.storicoEventi,
       storicoSet: this.storicoSet || []
     };
     localStorage.setItem('quickscout_state', JSON.stringify(data));
+    this.salvaRosterPermanente();
   }
 
   // =========================================================
@@ -207,9 +255,50 @@ class ScoutApp {
   eseguiRotazione() {
     const [p1, p2, p3, p4, p5, p6] = this.formazione;
     this.formazione = [p2, p3, p4, p5, p6, p1];
+
+    // 1. Regola FIVB/FIPAV: Il Libero non può stare in prima linea (Zona 4 = index 3)
+    if (this.autoLiberoRotazione) {
+      const idxZona4 = 3;
+      if (this.formazione[idxZona4]?.ruolo === 'L') {
+        let centraleDaRientrare = null;
+        if (this.liberoSostituitoId) {
+          centraleDaRientrare = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId);
+        }
+        if (!centraleDaRientrare) {
+          centraleDaRientrare = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
+        }
+        if (centraleDaRientrare) {
+          this.formazione[idxZona4] = centraleDaRientrare;
+          this.liberoSostituitoId = null;
+        }
+      }
+    }
+
+    // 2. Entrata automatica Libero in 2ª linea (se attiva nelle opzioni)
+    if (this.autoLiberoEntrata) {
+      this.verificaEntrataAutomaticaLibero();
+    }
+
     this.giocatoreAttivo = this.formazione[0];
     this.salvaStato();
     this.render();
+  }
+
+  verificaEntrataAutomaticaLibero() {
+    const libero = this.tuttiGiocatori.find(g => g.ruolo === 'L');
+    if (!libero) return;
+    const giaInCampo = this.formazione.some(g => g.ruolo === 'L');
+    if (giaInCampo) return;
+
+    // Se un centrale è in 2ª linea (Zona 6 = idx 5 o Zona 5 = idx 4), il libero entra
+    const zone2a = [5, 4];
+    for (const z of zone2a) {
+      if (this.formazione[z]?.ruolo === 'C') {
+        this.liberoSostituitoId = this.formazione[z].id;
+        this.formazione[z] = libero;
+        break;
+      }
+    }
   }
 
   eseguiRotazioneInversa() {
@@ -426,24 +515,38 @@ class ScoutApp {
 
   scambiaLiberoConCentrale() {
     const libero = this.tuttiGiocatori.find(g => g.ruolo === 'L');
-    if (!libero) return;
+    if (!libero) {
+      alert("Nessun atleta con ruolo 'L' (Libero) registrato nel Roster!");
+      return;
+    }
 
     const indexLibero = this.formazione.findIndex(g => g.ruolo === 'L');
     if (indexLibero !== -1) {
-      const riserveCentrale = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
-      if (riserveCentrale) {
-        this.eseguiSostituzione(indexLibero, riserveCentrale.id);
+      // Il Libero è in campo: fallo uscire e fai rientrare il centrale sostituito
+      let centraleDaRientrare = null;
+      if (this.liberoSostituitoId) {
+        centraleDaRientrare = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId);
+      }
+      if (!centraleDaRientrare) {
+        centraleDaRientrare = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
+      }
+      if (centraleDaRientrare) {
+        this.eseguiSostituzione(indexLibero, centraleDaRientrare.id);
+        this.liberoSostituitoId = null;
       }
       return;
     }
 
-    const zone2aLinea = [0, 5, 4];
+    // Il Libero è in panchina: fallo entrare al posto del centrale in 2ª linea (Zona 5, 6 o 1)
+    const zone2aLinea = [4, 5, 0];
     for (const z of zone2aLinea) {
-      if (this.formazione[z].ruolo === 'C') {
+      if (this.formazione[z]?.ruolo === 'C') {
+        this.liberoSostituitoId = this.formazione[z].id;
         this.eseguiSostituzione(z, libero.id);
         return;
       }
     }
+    alert("Nessun Centrale ('C') trovato in seconda linea (Zone 5, 6 o 1) da sostituire con il Libero.");
   }
 
   chiamaTimeout() {
@@ -1301,6 +1404,22 @@ class ScoutApp {
       sostLabel.textContent = `${this.sostituzioniCasa}/${this.maxSostituzioni} Sost`;
     }
 
+    // Aggiornamento Chip Libero (indicatore visivo se è in campo o panchina)
+    const chipLibero = document.getElementById('btn-chip-libero');
+    const chipLiberoText = document.getElementById('chip-libero-text');
+    if (chipLibero && chipLiberoText) {
+      const liberoInCampo = this.formazione.some(g => g.ruolo === 'L');
+      if (liberoInCampo) {
+        chipLibero.classList.add('in-campo');
+        chipLiberoText.textContent = 'Libero in Campo';
+        chipLibero.title = 'Libero in campo. Tocca per farlo uscire e far rientrare il Centrale.';
+      } else {
+        chipLibero.classList.remove('in-campo');
+        chipLiberoText.textContent = 'Libero (L)';
+        chipLibero.title = 'Libero in panchina. Tocca per farlo entrare per il Centrale in 2ª linea.';
+      }
+    }
+
     // 3. Timeout Panchina
     const timeoutImg = document.getElementById('timeout-img');
     if (timeoutImg) {
@@ -1489,7 +1608,61 @@ class ScoutApp {
       const inOspite = document.getElementById('input-nome-ospite');
       if (inCasa) inCasa.value = this.squadraCasa;
       if (inOspite) inOspite.value = this.squadraOspite;
+      const chkRot = document.getElementById('check-auto-libero-rotazione');
+      const chkEnt = document.getElementById('check-auto-libero-entrata');
+      if (chkRot) chkRot.checked = this.autoLiberoRotazione;
+      if (chkEnt) chkEnt.checked = this.autoLiberoEntrata;
     }
+  }
+
+  avviaNuovaPartita() {
+    if (!confirm('Vuoi avviare una nuova partita azzerando punteggi, set ed eventi?\n\nIl tuo Roster con tutti i giocatori e le squadre verranno CONSERVATI.')) {
+      return;
+    }
+
+    this.puntiCasa = 0;
+    this.puntiOspite = 0;
+    this.setCorrente = 1;
+    this.setVintiCasa = 0;
+    this.setVintiOspite = 0;
+    this.haPallaCasa = true;
+
+    this.timeoutCasa = 0;
+    this.timeoutOspite = 0;
+    this.sostituzioniCasa = 0;
+    this.storicoSet = [];
+    this.storicoEventi = [];
+    this.numeroPunto = 1;
+    this.numeroScambio = 0;
+    this.fondamentaleSelezionato = 'battuta';
+    this.liberoSostituitoId = null;
+
+    // Se il libero era in campo al posto di un centrale, ripristina il centrale titolare
+    const indexLibero = this.formazione.findIndex(g => g.ruolo === 'L');
+    if (indexLibero !== -1) {
+      const centrale = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
+      if (centrale) {
+        this.formazione[indexLibero] = centrale;
+      }
+    }
+    this.giocatoreAttivo = this.formazione[0];
+
+    this.salvaStato();
+    this.salvaRosterPermanente();
+    this.render();
+
+    const modal = document.getElementById('modal-gestione');
+    if (modal) modal.classList.remove('visibile');
+    alert('Nuova partita avviata con successo! Punteggi azzerati, il tuo Roster è stato conservato.');
+  }
+
+  ripristinaRosterPredefinito() {
+    if (!confirm('Attenzione: questa operazione cancellerà il tuo Roster personalizzato e ripristinerà i numeri base da #1 a #12 vuoti.\n\nSei sicuro di voler procedere?')) {
+      return;
+    }
+    localStorage.removeItem('quickscout_roster');
+    localStorage.removeItem('quickscout_state');
+    location.reload();
   }
 
   renderRosterList() {

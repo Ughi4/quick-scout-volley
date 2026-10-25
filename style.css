@@ -480,6 +480,12 @@ html, body {
   transform: scale(0.95);
 }
 
+.chip-libero.in-campo {
+  background-color: #00ADB5 !important;
+  border: 1.5px solid #EEEEEE !important;
+  box-shadow: 0 0 10px rgba(0, 173, 181, 0.8) !important;
+}
+
 .riga-giocatori {
   display: flex;
   justify-content: space-around;

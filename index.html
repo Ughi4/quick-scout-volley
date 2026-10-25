@@ -106,8 +106,8 @@
               <span>Punto Avv.</span>
             </button>
 
-            <button class="chip-libero" onclick="app.scambiaLiberoConCentrale()" title="Scambia Libero con Centrale">
-              <span>🛡️</span> Libero (L)
+            <button id="btn-chip-libero" class="chip-libero" onclick="app.scambiaLiberoConCentrale()" title="Scambia Libero con Centrale">
+              <span>🛡️</span> <span id="chip-libero-text">Libero (L)</span>
             </button>
 
             <button class="btn-avversario" onclick="app.erroreAvversario()" title="Errore Avversari">
@@ -443,14 +443,34 @@
             app.squadraCasa = document.getElementById('input-nome-casa').value || 'CASA';
             app.squadraOspite = document.getElementById('input-nome-ospite').value || 'OSPITI';
             app.salvaStato();
+            app.salvaRosterPermanente();
             app.render();
             alert('Nomi squadre salvati!');
           ">Salva Nomi Squadre</button>
 
-          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin-bottom:16px;">
+          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin-bottom:14px;">
 
-          <button class="btn-bottom" style="width:100%; justify-content:center; background:#D32F2F; margin-bottom:8px;" onclick="if(confirm('Vuoi davvero resettare la partita e i punteggi?')){ localStorage.removeItem('quickscout_state'); location.reload(); }">
-            ⚠️ Resetta Punteggi e Avvia Nuova Partita
+          <!-- IMPOSTAZIONI LIBERO -->
+          <div style="background:rgba(0,0,0,0.2); border-radius:6px; padding:12px; margin-bottom:16px;">
+            <div style="font-weight:bold; font-size:13px; margin-bottom:8px; color:#00ADB5;">🛡️ Impostazioni Gestione Libero</div>
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; margin-bottom:10px; cursor:pointer;">
+              <input type="checkbox" id="check-auto-libero-rotazione" checked style="margin-top:2px;" onchange="app.autoLiberoRotazione = this.checked; app.salvaStato();">
+              <span><strong>Uscita automatica del Libero da prima linea (Zona 4)</strong><br><small style="opacity:0.8;">Regola ufficiale FIVB: fa rientrare il centrale titolare appena il Libero ruoterebbe in prima linea.</small></span>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="check-auto-libero-entrata" style="margin-top:2px;" onchange="app.autoLiberoEntrata = this.checked; app.salvaStato();">
+              <span><strong>Entrata automatica del Libero in seconda linea</strong><br><small style="opacity:0.8;">Sostituisce automaticamente il centrale di seconda linea su rotazione.</small></span>
+            </label>
+          </div>
+
+          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin-bottom:14px;">
+
+          <button class="btn-bottom" style="width:100%; justify-content:center; background:#00ADB5; margin-bottom:10px;" onclick="app.avviaNuovaPartita()">
+            🏐 Avvia Nuova Partita (Azzera Punteggi, Conserva Roster)
+          </button>
+
+          <button class="btn-bottom" style="width:100%; justify-content:center; background:#D32F2F; margin-bottom:8px; font-size:11px; opacity:0.85;" onclick="app.ripristinaRosterPredefinito()">
+            ⚠️ Ripristina Roster di base (#1-#12 vuoto)
           </button>
         </div>
       </div>
