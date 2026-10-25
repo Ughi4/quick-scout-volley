@@ -41,24 +41,24 @@
       </button>
 
       <!-- Tabellone Casa -->
-      <div class="tabellone-squadra">
+      <div id="tabellone-casa" class="tabellone-squadra" onclick="app.impostaPossessoPalla(true)" style="cursor:pointer;" title="Tocca per assegnare la battuta a CASA">
         <img id="palla-casa" class="icon-palla" src="assets/images/possesso_palla.png" alt="Palla">
         <span id="nome-casa-display" class="nome-squadra">CASA</span>
-        <button class="btn-stepper" onclick="app.correggiPunti(-1, 0)" title="Diminuisci punto">-</button>
+        <button class="btn-stepper" onclick="event.stopPropagation(); app.correggiPunti(-1, 0)" title="Diminuisci punto">-</button>
         <span id="display-punti-casa" class="punti-display">0</span>
-        <button class="btn-stepper" onclick="app.correggiPunti(1, 0)" title="Aumenta punto">+</button>
+        <button class="btn-stepper" onclick="event.stopPropagation(); app.correggiPunti(1, 0)" title="Aumenta punto">+</button>
       </div>
 
       <!-- Set Display -->
       <div id="set-display" class="set-badge">SET 1</div>
 
       <!-- Tabellone Ospite -->
-      <div class="tabellone-squadra">
+      <div id="tabellone-ospite" class="tabellone-squadra" onclick="app.impostaPossessoPalla(false)" style="cursor:pointer;" title="Tocca per assegnare la battuta a OSPITI">
         <img id="palla-ospite" class="icon-palla" src="assets/images/possesso_palla.png" alt="Palla" style="display:none;">
         <span id="nome-ospite-display" class="nome-squadra">OSPITI</span>
-        <button class="btn-stepper" onclick="app.correggiPunti(0, -1)" title="Diminuisci punto">-</button>
+        <button class="btn-stepper" onclick="event.stopPropagation(); app.correggiPunti(0, -1)" title="Diminuisci punto">-</button>
         <span id="display-punti-ospite" class="punti-display">0</span>
-        <button class="btn-stepper" onclick="app.correggiPunti(0, 1)" title="Aumenta punto">+</button>
+        <button class="btn-stepper" onclick="event.stopPropagation(); app.correggiPunti(0, 1)" title="Aumenta punto">+</button>
       </div>
 
       <!-- Report PDF -->
@@ -348,7 +348,8 @@
       <div class="gestione-tabs">
         <button id="tab-btn-roster" class="tab-btn attivo" onclick="app.cambiaTabGestione('roster')">👥 Roster Giocatori</button>
         <button id="tab-btn-formazione" class="tab-btn" onclick="app.cambiaTabGestione('formazione')">🏐 Formazione Iniziale</button>
-        <button id="tab-btn-partita" class="tab-btn" onclick="app.cambiaTabGestione('partita')">⚙️ Squadre & Partita</button>
+        <button id="tab-btn-partita" class="tab-btn" onclick="app.cambiaTabGestione('partita')">⚙️ Squadre & Opzioni</button>
+        <button id="tab-btn-storico" class="tab-btn" onclick="app.cambiaTabGestione('storico')">📁 Storico Partite</button>
       </div>
 
       <div class="modal-body">
@@ -472,6 +473,22 @@
           <button class="btn-bottom" style="width:100%; justify-content:center; background:#D32F2F; margin-bottom:8px; font-size:11px; opacity:0.85;" onclick="app.ripristinaRosterPredefinito()">
             ⚠️ Ripristina Roster di base (#1-#12 vuoto)
           </button>
+        </div>
+
+        <!-- TAB 4: STORICO PARTITE -->
+        <div id="tab-gestione-storico" class="tab-content" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
+            <div>
+              <div style="font-weight:900; font-size:14px; color:#00E5FF;">📁 Archivio Partite Salvate</div>
+              <small style="opacity:0.8; font-size:11px;">Rivedi i match passati, ricaricali o scarica il loro report PDF</small>
+            </div>
+            <button class="btn-bottom" style="padding:6px 12px; font-size:11px; background:#00ADB5;" onclick="app.salvaPartitaAttualeNelloStorico()">
+              💾 Salva Match Attuale
+            </button>
+          </div>
+          <div id="lista-storico-container" style="max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+            <!-- Riempito dinamicamente da app.renderStoricoPartite() -->
+          </div>
         </div>
       </div>
 
