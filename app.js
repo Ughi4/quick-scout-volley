@@ -72,7 +72,7 @@ class ScoutApp {
       this.tuttiGiocatori[5]  // Z6 -> #6
     ];
 
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.storicoEventi = [];
     this.traiettoria = { xInizio: null, yInizio: null, xFine: null, yFine: null };
 
@@ -166,7 +166,7 @@ class ScoutApp {
           }
         });
         this.storicoSet = data.storicoSet || [];
-        this.giocatoreAttivo = this.formazione[0];
+        this.giocatoreAttivo = null;
       } catch (e) {
         console.error('Errore ripristino dati:', e);
       }
@@ -227,17 +227,16 @@ class ScoutApp {
     this.haPallaCasa = Boolean(casaHaPalla);
 
     if (this.haPallaCasa) {
-      // Squadra CASA in battuta: fondamentale Battuta, battitore in Z1
+      // Squadra CASA in battuta: fondamentale Battuta
       this.fondamentaleSelezionato = 'battuta';
-      this.giocatoreAttivo = this.formazione[0]; // Z1 (servizio)
+      this.giocatoreAttivo = null;
     } else {
       // Squadra OSPITI in battuta: squadra CASA in RICEZIONE
       this.fondamentaleSelezionato = 'ricezione';
       if (this.autoLiberoEntrata) {
         this.verificaEntrataAutomaticaLibero();
       }
-      const liberoInCampo = this.formazione.find(g => g.ruolo === 'L');
-      this.giocatoreAttivo = liberoInCampo || this.formazione[5]; // Libero o Z6 (ricezione)
+      this.giocatoreAttivo = null;
     }
 
     this.salvaStato();
@@ -256,7 +255,7 @@ class ScoutApp {
       this.eseguiRotazione();
     }
     this.fondamentaleSelezionato = 'battuta';
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.verificaFineSet();
     this.salvaStato();
     this.render();
@@ -271,8 +270,7 @@ class ScoutApp {
     if (this.autoLiberoEntrata) {
       this.verificaEntrataAutomaticaLibero();
     }
-    const liberoInCampo = this.formazione.find(g => g.ruolo === 'L');
-    this.giocatoreAttivo = liberoInCampo || this.formazione[5]; // Ricezione Libero o Posto 6
+    this.giocatoreAttivo = null;
     this.verificaFineSet();
     this.salvaStato();
     this.render();
@@ -287,7 +285,7 @@ class ScoutApp {
       this.eseguiRotazione();
     }
     this.fondamentaleSelezionato = 'battuta';
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.verificaFineSet();
     this.salvaStato();
     this.render();
@@ -327,7 +325,7 @@ class ScoutApp {
       this.verificaEntrataAutomaticaLibero();
     }
 
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.salvaStato();
     this.render();
   }
@@ -352,7 +350,7 @@ class ScoutApp {
   eseguiRotazioneInversa() {
     const [p1, p2, p3, p4, p5, p6] = this.formazione;
     this.formazione = [p6, p1, p2, p3, p4, p5];
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.salvaStato();
     this.render();
   }
@@ -413,7 +411,7 @@ class ScoutApp {
 
     this.storicoEventi.push(evento);
     this.fondamentaleSelezionato = 'battuta';
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.numeroScambio = 0;
     this.cancellaTraiettoria();
     this.verificaFineSet();
@@ -441,6 +439,7 @@ class ScoutApp {
 
     this.storicoEventi.push(evento);
     this.fondamentaleSelezionato = 'muro';
+    this.giocatoreAttivo = null;
     this.cancellaTraiettoria();
     this.salvaStato();
     this.render();
@@ -450,7 +449,11 @@ class ScoutApp {
   // REGISTRAZIONE EVENTO STANDARD (Ruota o Tastierino)
   // =========================================================
   registraEventoStandard(valutazioneId, fondamentaleSpecifico = null) {
-    const g = this.giocatoreAttivo || this.formazione[0] || this.tuttiGiocatori[0];
+    const g = this.giocatoreAttivo;
+    if (!g) {
+      alert("Tocca prima sul campetto il giocatore che ha fatto l'azione!");
+      return;
+    }
     const fond = fondamentaleSpecifico || this.fondamentaleSelezionato;
     let chiudePunto = false;
 
@@ -487,20 +490,17 @@ class ScoutApp {
       this.numeroPunto++;
       this.numeroScambio = 0;
       this.fondamentaleSelezionato = this.haPallaCasa ? 'battuta' : 'ricezione';
-      this.giocatoreAttivo = this.haPallaCasa ? this.formazione[0] : this.formazione[5];
+      this.giocatoreAttivo = null; // Nessun giocatore pre-selezionato a priori
       this.verificaFineSet();
     } else {
+      // Suggerisci il fondamentale successivo ma lascia lo scout libero al 100% di toccare chiunque
       if (fond === 'battuta') this.fondamentaleSelezionato = 'difesa';
-      else if (fond === 'ricezione') {
-        this.fondamentaleSelezionato = 'alzata';
-        this.giocatoreAttivo = this.formazione.find(p => p.ruolo === 'P') || this.formazione[2];
-      }
-      else if (fond === 'alzata') {
-        this.fondamentaleSelezionato = 'attacco';
-        this.giocatoreAttivo = this.formazione[3]; // posto 4
-      }
+      else if (fond === 'ricezione') this.fondamentaleSelezionato = 'alzata';
+      else if (fond === 'alzata') this.fondamentaleSelezionato = 'attacco';
       else if (fond === 'attacco') this.fondamentaleSelezionato = 'difesa';
       else if (fond === 'difesa' || fond === 'muro') this.fondamentaleSelezionato = 'alzata';
+
+      this.giocatoreAttivo = null; // Nessun giocatore pre-selezionato a priori
     }
 
     this.cancellaTraiettoria();
@@ -528,7 +528,7 @@ class ScoutApp {
       this.numeroPunto = 1;
       this.numeroScambio = 0;
       this.fondamentaleSelezionato = 'battuta';
-      this.giocatoreAttivo = this.formazione[0];
+      this.giocatoreAttivo = null;
     }
 
     this.salvaStato();
@@ -1716,7 +1716,7 @@ class ScoutApp {
         this.formazione[indexLibero] = centrale;
       }
     }
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
 
     this.salvaStato();
     this.salvaRosterPermanente();
@@ -1791,7 +1791,7 @@ class ScoutApp {
     if (p.formazioneIds) {
       this.formazione = p.formazioneIds.map(fid => this.tuttiGiocatori.find(g => g.id === fid) || this.tuttiGiocatori[0]);
     }
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
     this.haPallaCasa = true;
 
     this.salvaStato();
@@ -2042,7 +2042,7 @@ class ScoutApp {
 
     this.tuttiGiocatori = this.tuttiGiocatori.filter(item => item.id !== id);
     if (this.giocatoreAttivo?.id === id) {
-      this.giocatoreAttivo = this.formazione[0];
+      this.giocatoreAttivo = null;
     }
 
     this.salvaStato();
@@ -2098,7 +2098,7 @@ class ScoutApp {
 
     const nuovaFormazione = ids.map(id => this.tuttiGiocatori.find(g => g.id === id));
     this.formazione = nuovaFormazione;
-    this.giocatoreAttivo = this.formazione[0];
+    this.giocatoreAttivo = null;
 
     this.salvaStato();
     this.render();
