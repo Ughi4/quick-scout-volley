@@ -231,6 +231,30 @@ html, body {
   object-fit: contain;
 }
 
+.btn-termina-top {
+  background-color: #C62828;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 4px 10px;
+  height: 38px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: transform 0.1s, background-color 0.2s;
+}
+
+.btn-termina-top:active {
+  transform: scale(0.96);
+  background-color: #B71C1C;
+}
+
 /* =========================================================
    2. CORPO CENTRALE A 3 COLONNE
    ========================================================= */

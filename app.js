@@ -95,6 +95,8 @@ class ScoutApp {
     this.atletaPanchinaSelezionato = null;
     this.tabReportAttivo = 'riepilogo';
     this.filtroSetReport = 'tutti';
+    this.formulaGara = '5'; // '5' (al meglio dei 5), '3' (al meglio dei 3), 'libera'
+    this.reportMatchData = null;
     this.sottoTabStoricoAttivo = 'partite';
 
     this.initLocalStorage();
@@ -191,12 +193,14 @@ class ScoutApp {
         this.storicoSet = data.storicoSet || [];
         this.tempiSet = data.tempiSet || { 1: { inizio: Date.now(), fine: null, durataMinuti: 0 } };
         this.tipologiaPartita = data.tipologiaPartita || 'Campionato';
+        this.formulaGara = data.formulaGara || '5';
         this.maxSostituzioni = data.maxSostituzioni || 6;
         this.giocatoreAttivo = null;
       } catch (e) {
         console.error('Errore ripristino dati:', e);
       }
     }
+    this.autoRiparaStoricoPartite();
   }
 
   salvaRosterPermanente() {
@@ -245,6 +249,7 @@ class ScoutApp {
       storicoSet: this.storicoSet || [],
       tempiSet: this.tempiSet || {},
       tipologiaPartita: this.tipologiaPartita || 'Campionato',
+      formulaGara: this.formulaGara || '5',
       maxSostituzioni: this.maxSostituzioni || 6
     };
     localStorage.setItem('quickscout_state', JSON.stringify(data));
@@ -864,7 +869,8 @@ class ScoutApp {
   // GESTIONE FINE SET & TEMPI (Point 5 & Point 6)
   // =========================================================
   verificaFineSet() {
-    const target = this.setCorrente === 5 ? 15 : 25;
+    const isBestOf3 = (this.formulaGara === '3');
+    const target = (isBestOf3 && this.setCorrente === 3) || (!isBestOf3 && this.setCorrente === 5) ? 15 : 25;
     if ((this.puntiCasa >= target || this.puntiOspite >= target) && Math.abs(this.puntiCasa - this.puntiOspite) >= 2) {
       this.finalizzaFineSet();
     }
@@ -900,7 +906,10 @@ class ScoutApp {
     if (vintoCasa) this.setVintiCasa++;
     else this.setVintiOspite++;
 
-    if (this.setVintiCasa >= 3 || this.setVintiOspite >= 3) {
+    const isBestOf3 = (this.formulaGara === '3');
+    const sogliaVittoria = isBestOf3 ? 2 : 3;
+
+    if (this.formulaGara !== 'libera' && (this.setVintiCasa >= sogliaVittoria || this.setVintiOspite >= sogliaVittoria)) {
       alert("🏆 Partita Terminata!\nRisultato finale: " + this.squadraCasa + " " + this.setVintiCasa + " - " + this.setVintiOspite + " " + this.squadraOspite);
       this.salvaPartitaAttualeNelloStorico();
       this.salvaStato();
@@ -2074,9 +2083,133 @@ class ScoutApp {
   initServiceWorker() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('ServiceWorker registrato con successo (Offline PWA attiva)'))
+        .then(reg => {
+          console.log('ServiceWorker registrato con successo (Offline PWA attiva)');
+          reg.update();
+          reg.onupdatefound = () => {
+            const installing = reg.installing;
+            if (installing) {
+              installing.onstatechange = () => {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                  const b = document.getElementById('banner-aggiornamento-disponibile');
+                  if (b) b.style.display = 'block';
+                }
+              };
+            }
+          };
+        })
         .catch(err => console.log('Errore ServiceWorker:', err));
     }
+  }
+
+  forzaAggiornamentoApp() {
+    if (confirm("Vuoi ricaricare l'app per applicare subito l'ultimo aggiornamento?\nI tuoi dati delle partite e il tuo roster rimarranno conservati.")) {
+      if ('caches' in window) {
+        caches.keys().then(names => Promise.all(names.map(name => caches.delete(name))))
+          .then(() => {
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations().then(regs => {
+                regs.forEach(r => r.unregister());
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
+          });
+      } else {
+        window.location.reload(true);
+      }
+    }
+  }
+
+  autoRiparaStoricoPartite() {
+    if (!Array.isArray(this.archivioPartite)) return;
+    let modificato = false;
+    this.archivioPartite.forEach(p => {
+      if (Array.isArray(p.storicoEventi) && p.storicoEventi.length > 0) {
+        const setIds = [...new Set(p.storicoEventi.map(e => e.set || 1))].sort((a,b) => a-b);
+        if (!p.storicoSet) p.storicoSet = [];
+        setIds.forEach(numSet => {
+          let sObj = p.storicoSet.find(s => s.set === numSet);
+          if (!sObj) {
+            let maxC = 0, maxO = 0;
+            p.storicoEventi.filter(e => e.set === numSet).forEach(e => {
+              if (e.puntiCasa && e.puntiCasa > maxC) maxC = e.puntiCasa;
+              if (e.puntiOspite && e.puntiOspite > maxO) maxO = e.puntiOspite;
+            });
+            if (numSet === p.setCorrente) {
+              maxC = Math.max(maxC, p.puntiCasa || 0);
+              maxO = Math.max(maxO, p.puntiOspite || 0);
+            }
+            p.storicoSet.push({
+              set: numSet,
+              puntiCasa: maxC || 25,
+              puntiOspite: maxO || 20,
+              vintoCasa: maxC >= maxO,
+              durataMinuti: (p.tempiSet?.[numSet]?.durataMinuti) || 20
+            });
+            modificato = true;
+          }
+        });
+        // Ricalcola set vinti esatti
+        let vC = 0, vO = 0;
+        p.storicoSet.forEach(s => {
+          if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vC++;
+          else vO++;
+        });
+        if (p.setVintiCasa !== vC || p.setVintiOspite !== vO) {
+          p.setVintiCasa = vC;
+          p.setVintiOspite = vO;
+          modificato = true;
+        }
+      }
+    });
+    if (modificato) {
+      this.salvaArchivioPartitePermanente();
+    }
+  }
+
+  terminaPartitaManuale() {
+    const vintoCasa = this.puntiCasa > this.puntiOspite;
+    const confermato = confirm("Vuoi dichiarare CONCLUSA la partita tra " + this.squadraCasa + " e " + this.squadraOspite + "?\n\n" +
+      "Set Corrente (" + this.setCorrente + "): " + this.puntiCasa + " - " + this.puntiOspite + "\n" +
+      "Il set attuale verrà memorizzato e la partita archiviata con referto completo.");
+    if (!confermato) return;
+
+    // Se nel set corrente sono state registrate azioni o punti, finalizzalo
+    if (this.puntiCasa > 0 || this.puntiOspite > 0 || this.storicoEventi.some(e => e.set === this.setCorrente)) {
+      if (!this.storicoSet) this.storicoSet = [];
+      const idx = this.storicoSet.findIndex(s => s.set === this.setCorrente);
+      const durata = (this.tempiSet && this.tempiSet[this.setCorrente]?.durataMinuti) || 20;
+      const setData = {
+        set: this.setCorrente,
+        puntiCasa: this.puntiCasa,
+        puntiOspite: this.puntiOspite,
+        vintoCasa: vintoCasa,
+        durataMinuti: durata
+      };
+      if (idx !== -1) {
+        this.storicoSet[idx] = setData;
+      } else {
+        this.storicoSet.push(setData);
+      }
+    }
+
+    // Ricalcola esattamente il punteggio dei set
+    let vC = 0, vO = 0;
+    (this.storicoSet || []).forEach(s => {
+      if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vC++;
+      else vO++;
+    });
+    this.setVintiCasa = vC;
+    this.setVintiOspite = vO;
+
+    this.salvaPartitaAttualeNelloStorico();
+    this.salvaStato();
+    this.render();
+
+    alert("🏆 Partita Terminata!\nRisultato finale: " + this.squadraCasa + " " + this.setVintiCasa + " - " + this.setVintiOspite + " " + this.squadraOspite + "\n\nApertura Report e Statistiche...");
+    this.apriReportInterattivo();
   }
 
   // =========================================================
@@ -2416,12 +2549,54 @@ class ScoutApp {
       return;
     }
 
+    // Assicurati che lo storicoSet includa il set corrente se giocato
+    if (!this.storicoSet) this.storicoSet = [];
+    if (this.puntiCasa > 0 || this.puntiOspite > 0 || this.storicoEventi.some(e => e.set === this.setCorrente)) {
+      const idx = this.storicoSet.findIndex(s => s.set === this.setCorrente);
+      const vintoCasa = this.puntiCasa > this.puntiOspite;
+      const durata = (this.tempiSet && this.tempiSet[this.setCorrente]?.durataMinuti) || 20;
+      const sData = {
+        set: this.setCorrente,
+        puntiCasa: this.puntiCasa,
+        puntiOspite: this.puntiOspite,
+        vintoCasa: vintoCasa,
+        durataMinuti: durata
+      };
+      if (idx !== -1) {
+        this.storicoSet[idx] = sData;
+      } else {
+        this.storicoSet.push(sData);
+      }
+    }
+
+    // Ricalcola set vinti esattamente da tutti i set
+    let vCasa = 0, vOspite = 0;
+    this.storicoSet.forEach(s => {
+      if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vCasa++;
+      else vOspite++;
+    });
+    this.setVintiCasa = vCasa;
+    this.setVintiOspite = vOspite;
+
     const ora = new Date();
     const dataStr = `${ora.getDate().toString().padStart(2, '0')}/${(ora.getMonth() + 1).toString().padStart(2, '0')}/${ora.getFullYear()} ${ora.getHours().toString().padStart(2, '0')}:${ora.getMinutes().toString().padStart(2, '0')}`;
 
+    if (!this.archivioPartite) this.archivioPartite = [];
+
+    // Controlla se la partita corrente è già presente nello storico per aggiornarla invece di duplicarla
+    const existingIndex = this.archivioPartite.findIndex(p => 
+      p.squadraCasa === this.squadraCasa && 
+      p.squadraOspite === this.squadraOspite &&
+      (Math.abs((p.id || 0) - (this.partitaInCorsoId || Date.now())) < 4 * 3600 * 1000)
+    );
+
+    const matchId = (existingIndex !== -1 && this.archivioPartite[existingIndex].id) ? this.archivioPartite[existingIndex].id : (this.partitaInCorsoId || Date.now());
+    this.partitaInCorsoId = matchId;
+
     const partita = {
-      id: Date.now(),
-      data: dataStr,
+      id: matchId,
+      data: (existingIndex !== -1 ? this.archivioPartite[existingIndex].data : dataStr),
+      dataAggiornamento: dataStr,
       squadraCasa: this.squadraCasa,
       squadraOspite: this.squadraOspite,
       setVintiCasa: this.setVintiCasa,
@@ -2433,16 +2608,21 @@ class ScoutApp {
       totaleAzioni: this.storicoEventi.length,
       storicoEventi: JSON.parse(JSON.stringify(this.storicoEventi)),
       tuttiGiocatori: JSON.parse(JSON.stringify(this.tuttiGiocatori)),
-      formazioneIds: this.formazione.map(g => g.id)
+      formazioneIds: this.formazione.map(g => g.id),
+      tempiSet: JSON.parse(JSON.stringify(this.tempiSet || {}))
     };
 
-    if (!this.archivioPartite) this.archivioPartite = [];
-    this.archivioPartite.unshift(partita);
+    if (existingIndex !== -1) {
+      this.archivioPartite[existingIndex] = partita;
+    } else {
+      this.archivioPartite.unshift(partita);
+    }
+
     this.salvaArchivioPartitePermanente();
     this.renderStoricoPartite();
 
     if (mostraAlert) {
-      alert(`Partita "${this.squadraCasa} vs ${this.squadraOspite}" salvata con successo nello Storico!`);
+      alert(`Partita "${this.squadraCasa} vs ${this.squadraOspite}" (${this.setVintiCasa}-${this.setVintiOspite}) salvata con successo nello Storico!`);
     }
   }
 
@@ -2548,6 +2728,9 @@ class ScoutApp {
           Parziali Set: <strong>${parzialiStr}</strong>
         </div>
         <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px;">
+          <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#00ADB5;" onclick="app.apriReportInterattivoPerPartita(${p.id})" title="Visualizza Statistiche e Giocatori a Schermo">
+            📊 Report
+          </button>
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#FE5100;" onclick="app.generaReportPDFPerPartita(${p.id})" title="Scarica Report PDF della Partita">
             📄 PDF
           </button>
@@ -2877,11 +3060,18 @@ class ScoutApp {
   // =========================================================
   // REPORT INTERATTIVO A SCHERMO (Point 9 & Point 10)
   // =========================================================
-  apriReportInterattivo() {
+  apriReportInterattivo(matchData = null) {
+    this.reportMatchData = matchData;
     const modal = document.getElementById('modal-report-interattivo');
     if (!modal) return;
     modal.classList.add('visibile');
     this.cambiaTabReport(this.tabReportAttivo || 'riepilogo');
+  }
+
+  apriReportInterattivoPerPartita(id) {
+    const p = this.archivioPartite.find(item => item.id === id);
+    if (!p) return;
+    this.apriReportInterattivo(p);
   }
 
   cambiaTabReport(tabName) {
@@ -2904,12 +3094,20 @@ class ScoutApp {
   }
 
   renderReportRiepilogo() {
+    const m = this.reportMatchData;
+    const sqCasa = m ? m.squadraCasa : this.squadraCasa;
+    const sqOspite = m ? m.squadraOspite : this.squadraOspite;
+    const setVCasa = m ? (m.setVintiCasa ?? 0) : this.setVintiCasa;
+    const setVOspite = m ? (m.setVintiOspite ?? 0) : this.setVintiOspite;
+    const stSet = m ? (m.storicoSet || []) : (this.storicoSet || []);
+    const evs = m ? (m.storicoEventi || []) : (this.storicoEventi || []);
+
     const parzBox = document.getElementById('report-box-parziali');
     if (parzBox) {
-      let parzText = '<strong>Match:</strong> ' + this.squadraCasa + ' ' + this.setVintiCasa + ' - ' + this.setVintiOspite + ' ' + this.squadraOspite + ' (Set Corrente: ' + this.setCorrente + ')<br>';
-      if (this.storicoSet && this.storicoSet.length > 0) {
+      let parzText = '<strong>Match:</strong> ' + sqCasa + ' ' + setVCasa + ' - ' + setVOspite + ' ' + sqOspite + '<br>';
+      if (stSet && stSet.length > 0) {
         parzText += '<span style="color:#00E5FF;">Parziali Set:</span> ';
-        this.storicoSet.forEach(s => {
+        stSet.forEach(s => {
           parzText += '<span style="background:rgba(255,255,255,0.15); padding:2px 6px; border-radius:3px; margin-right:4px;">Set ' + s.set + ': ' + s.puntiCasa + '-' + s.puntiOspite + (s.durataMinuti ? ' (' + s.durataMinuti + 'm)' : '') + '</span> ';
         });
       } else {
@@ -2924,7 +3122,7 @@ class ScoutApp {
     let attTot = 0, attKill = 0, attMur = 0, attErr = 0;
     let murPti = 0;
 
-    this.storicoEventi.forEach(ev => {
+    evs.forEach(ev => {
       if (ev.fondamentale === 'battuta') {
         batTot++;
         if (ev.valutazione === '++') batAces++;
@@ -3103,12 +3301,16 @@ class ScoutApp {
     }
 
     // Filtra eventi
+    const m = this.reportMatchData;
+    const allEvents = m ? (m.storicoEventi || []) : (this.storicoEventi || []);
+    const playerList = m ? (m.tuttiGiocatori || this.tuttiGiocatori) : this.tuttiGiocatori;
+
     const filteredEvents = (this.filtroSetReport === 'tutti')
-      ? this.storicoEventi
-      : this.storicoEventi.filter(e => e.set === this.filtroSetReport);
+      ? allEvents
+      : allEvents.filter(e => e.set === this.filtroSetReport);
 
     const statsMap = {};
-    this.tuttiGiocatori.forEach(g => {
+    playerList.forEach(g => {
       statsMap[g.id] = {
         giocatore: g,
         totAzioni: 0,

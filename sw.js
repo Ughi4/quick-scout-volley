@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quickscout-pwa-v10';
+const CACHE_NAME = 'quickscout-pwa-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -64,25 +64,40 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-First per codice (HTML, JS, CSS) con fallback offline immediato a cache
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+  const url = new URL(event.request.url);
+  const isCode = url.pathname.endsWith('.html') ||
+                 url.pathname.endsWith('.js') ||
+                 url.pathname.endsWith('.css') ||
+                 url.pathname === '/' ||
+                 url.pathname.endsWith('/');
+
+  if (isCode) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const respClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, respClone));
+          }
           return networkResponse;
-        }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        })
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    // Cache-First per immagini e asset pesanti con aggiornamento in background
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const respClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, respClone));
+          }
+          return networkResponse;
         });
-        return networkResponse;
-      }).catch(() => {
-        // Fallback offline
-        return caches.match('./index.html');
-      });
-    })
-  );
+      })
+    );
+  }
 });
