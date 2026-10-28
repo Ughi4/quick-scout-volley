@@ -76,6 +76,7 @@ class ScoutApp {
     this.storicoEventi = [];
     this.traiettoria = { xInizio: null, yInizio: null, xFine: null, yFine: null };
 
+    this.liberoDesignatoId = null; // Memorizza quale dei liberi è designato come titolare
     this.liberoSostituitoId = null;
     this.autoLiberoRotazione = true; // Uscita automatica del Libero da prima linea (Regola FIVB)
     this.autoLiberoEntrata = true; // Entrata automatica del Libero in seconda linea (attiva di default)
@@ -119,6 +120,7 @@ class ScoutApp {
         }
         if (rData.autoLiberoRotazione !== undefined) this.autoLiberoRotazione = rData.autoLiberoRotazione;
         if (rData.autoLiberoEntrata !== undefined) this.autoLiberoEntrata = rData.autoLiberoEntrata;
+        if (rData.liberoDesignatoId !== undefined) this.liberoDesignatoId = rData.liberoDesignatoId;
       } catch (e) {
         console.error('Errore ripristino roster permanente:', e);
       }
@@ -145,6 +147,7 @@ class ScoutApp {
         this.liberoSostituitoId = data.liberoSostituitoId ?? null;
         if (data.autoLiberoRotazione !== undefined) this.autoLiberoRotazione = data.autoLiberoRotazione;
         if (data.autoLiberoEntrata !== undefined) this.autoLiberoEntrata = data.autoLiberoEntrata;
+        if (data.liberoDesignatoId !== undefined) this.liberoDesignatoId = data.liberoDesignatoId;
 
         const dummySurnames = ['Rossi', 'Bianchi', 'Ferrari', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno'];
         if (data.tuttiGiocatori && Array.isArray(data.tuttiGiocatori)) {
@@ -179,6 +182,7 @@ class ScoutApp {
         squadraCasa: this.squadraCasa,
         tuttiGiocatori: this.tuttiGiocatori,
         formazioneIds: this.formazione.map(g => g.id),
+        liberoDesignatoId: this.liberoDesignatoId,
         autoLiberoRotazione: this.autoLiberoRotazione,
         autoLiberoEntrata: this.autoLiberoEntrata
       };
@@ -210,6 +214,7 @@ class ScoutApp {
       sostituzioniCasa: this.sostituzioniCasa,
       tuttiGiocatori: this.tuttiGiocatori,
       formazioneIds: this.formazione.map(g => g.id),
+      liberoDesignatoId: this.liberoDesignatoId,
       liberoSostituitoId: this.liberoSostituitoId,
       autoLiberoRotazione: this.autoLiberoRotazione,
       autoLiberoEntrata: this.autoLiberoEntrata,
@@ -330,8 +335,26 @@ class ScoutApp {
     this.render();
   }
 
+  getLiberoDesignato() {
+    // 1. Libero espressamente designato / memorizzato per questo match
+    if (this.liberoDesignatoId) {
+      const l = this.tuttiGiocatori.find(g => g.id === this.liberoDesignatoId);
+      if (l && l.ruolo === 'L') return l;
+    }
+    // 2. Se c'è un libero attualmente in campo, quello è il designato
+    const inCampo = this.formazione.find(g => g.ruolo === 'L');
+    if (inCampo) {
+      this.liberoDesignatoId = inCampo.id;
+      return inCampo;
+    }
+    // 3. Altrimenti il primo con ruolo 'L' presente nel roster
+    const primo = this.tuttiGiocatori.find(g => g.ruolo === 'L');
+    if (primo) this.liberoDesignatoId = primo.id;
+    return primo;
+  }
+
   verificaEntrataAutomaticaLibero() {
-    const libero = this.tuttiGiocatori.find(g => g.ruolo === 'L');
+    const libero = this.getLiberoDesignato();
     if (!libero) return;
     const giaInCampo = this.formazione.some(g => g.ruolo === 'L');
     if (giaInCampo) return;
@@ -550,6 +573,11 @@ class ScoutApp {
         return;
       }
       this.sostituzioniCasa++;
+    } else {
+      // Se entra un atleta con ruolo 'L', memorizzalo come Libero designato per non scambiarlo con l'altro Libero
+      if (nuovo.ruolo === 'L') {
+        this.liberoDesignatoId = nuovo.id;
+      }
     }
 
     this.formazione[indexZona] = nuovo;
@@ -562,7 +590,7 @@ class ScoutApp {
   }
 
   scambiaLiberoConCentrale() {
-    const libero = this.tuttiGiocatori.find(g => g.ruolo === 'L');
+    const libero = this.getLiberoDesignato();
     if (!libero) {
       alert("Nessun atleta con ruolo 'L' (Libero) registrato nel Roster!");
       return;
@@ -660,11 +688,11 @@ class ScoutApp {
       if (activeSector !== null) {
         const sec = settori[activeSector];
         
-        // Evidenzia l'intero settore attivo (come nello screenshot del tablet)
+        // Evidenzia l'intero settore attivo (fino al bordo esterno r=250)
         ctx.save();
         ctx.beginPath();
-        ctx.arc(cx, cy, rOuter, sec.startRad, sec.endRad, false);
-        ctx.arc(cx, cy, rInner, sec.endRad, sec.startRad, true);
+        ctx.arc(cx, cy, 250, sec.startRad, sec.endRad, false);
+        ctx.arc(cx, cy, 44, sec.endRad, sec.startRad, true);
         ctx.closePath();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.20)';
         ctx.fill();
@@ -672,8 +700,8 @@ class ScoutApp {
 
         // Evidenzia l'anello specifico toccato
         if (activeRing !== null) {
-          const r1 = rInner + activeRing * dr;
-          const r2 = rInner + (activeRing + 1) * dr;
+          const r1 = (activeRing === 0) ? 44 : (activeRing === 1 ? 74 : (activeRing === 2 ? 106 : (activeRing === 3 ? 138 : 172)));
+          const r2 = (activeRing === 4) ? 250 : (activeRing === 3 ? 172 : (activeRing === 2 ? 138 : (activeRing === 1 ? 106 : 74)));
 
           ctx.save();
           ctx.beginPath();
@@ -750,11 +778,12 @@ class ScoutApp {
       const dy = y - cy;
       const dist = Math.hypot(dx, dy);
 
-      const rInner = 45;
-      const rOuter = 214;
-      const dr = (rOuter - rInner) / 5.0;
-
-      if (dist < rInner || dist > rOuter * 1.05) {
+      // 1. Se tocca nel cerchio centrale del giocatore (r < 42), lascia il tocco al pulsante "CHIUDI"
+      if (dist < 42) {
+        return null;
+      }
+      // 2. Limite massimo esterno (fino a 265px sul canvas 520x520)
+      if (dist > 265) {
         return null;
       }
 
@@ -773,7 +802,20 @@ class ScoutApp {
         else if (angleRad >= -Math.PI && angleRad < -2 * Math.PI / 3) sIdx = 5; // Difesa
       }
 
-      const ringIdx = Math.min(4, Math.max(0, Math.floor((dist - rInner) / dr)));
+      // Spessore progressivo: l'anello '++' (Punto/Kill) copre tutta l'area esterna della ruota (da 172px a 265px).
+      // Questo impedisce tocchi a vuoto ed è fedele al parametro 'wheel_pp_thickness_add' dell'app originale!
+      let ringIdx = 0;
+      if (dist >= 172) {
+        ringIdx = 4; // '++' (Punto / Perfetto)
+      } else if (dist >= 138) {
+        ringIdx = 3; // '+' (Positivo)
+      } else if (dist >= 106) {
+        ringIdx = 2; // '!' (Neutro)
+      } else if (dist >= 74) {
+        ringIdx = 1; // '-' (Negativo)
+      } else {
+        ringIdx = 0; // '==' (Errore)
+      }
 
       return { sectorIndex: sIdx, ringIndex: ringIdx };
     };
@@ -791,7 +833,17 @@ class ScoutApp {
       }
     };
 
-    // Eventi Pointer (Touch e Mouse unificati)
+    // Eventi Pointer (Touch e Mouse unificati, con reattività immediata al tocco e rilascio)
+    canvas.addEventListener('pointerdown', (e) => {
+      const res = calcolaCoordinate(e.clientX, e.clientY);
+      if (res && res.sectorIndex !== -1) {
+        activeSector = res.sectorIndex;
+        activeRing = res.ringIndex;
+        updateHUD();
+        redraw();
+      }
+    });
+
     canvas.addEventListener('pointermove', (e) => {
       const res = calcolaCoordinate(e.clientX, e.clientY);
       if (res) {
@@ -814,9 +866,12 @@ class ScoutApp {
 
     canvas.addEventListener('pointerup', (e) => {
       const res = calcolaCoordinate(e.clientX, e.clientY);
-      if (res && res.sectorIndex !== -1) {
-        const sec = settori[res.sectorIndex];
-        const val = valutazioni[res.ringIndex];
+      const secIdx = (res && res.sectorIndex !== -1) ? res.sectorIndex : activeSector;
+      const ringIdx = (res && res.ringIndex !== null) ? res.ringIndex : activeRing;
+
+      if (secIdx !== null && secIdx !== -1 && ringIdx !== null && ringIdx !== -1) {
+        const sec = settori[secIdx];
+        const val = valutazioni[ringIdx];
         this.registraEventoStandard(val, sec.id);
         this.chiudiRuota();
       }
@@ -2079,6 +2134,31 @@ class ScoutApp {
         select.appendChild(opt);
       });
     });
+
+    // Popola anche il selettore del Libero Titolare Designato
+    const selLibero = document.getElementById('setup-libero-titolare');
+    if (selLibero) {
+      selLibero.innerHTML = '';
+      const liberi = this.tuttiGiocatori.filter(g => g.ruolo === 'L');
+      if (liberi.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Nessun Libero (L) nel roster';
+        selLibero.appendChild(opt);
+      } else {
+        const liberoAttivo = this.getLiberoDesignato();
+        liberi.forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = l.id;
+          const nom = [l.cognome, l.nome].filter(Boolean).join(' ');
+          opt.textContent = nom ? `#${l.numero} ${nom} (L)` : `#${l.numero} (L)`;
+          if (liberoAttivo && liberoAttivo.id === l.id) {
+            opt.selected = true;
+          }
+          selLibero.appendChild(opt);
+        });
+      }
+    }
   }
 
   applicaFormazioneIniziale() {
@@ -2094,6 +2174,11 @@ class ScoutApp {
     if (uniqueIds.size < 6) {
       alert('Attenzione: un giocatore non può essere schierato in più zone contemporaneamente! Seleziona 6 giocatori differenti.');
       return;
+    }
+
+    const selLibero = document.getElementById('setup-libero-titolare');
+    if (selLibero && selLibero.value) {
+      this.liberoDesignatoId = parseInt(selLibero.value);
     }
 
     const nuovaFormazione = ids.map(id => this.tuttiGiocatori.find(g => g.id === id));

@@ -427,6 +427,14 @@
               <select id="setup-zona-1" class="select-setup-zona"></select>
             </div>
           </div>
+
+          <!-- Selezione Libero Titolare per squadre con più liberi (es. Sufferra vs Perry) -->
+          <div style="margin-top:12px; background:rgba(0,0,0,0.25); padding:10px 12px; border-radius:6px; border:1px solid rgba(0,229,255,0.3);">
+            <label style="font-weight:bold; color:#00E5FF; font-size:12px; display:block; margin-bottom:4px;">🛡️ Libero Titolare Designato:</label>
+            <select id="setup-libero-titolare" class="select-setup-zona" style="width:100%;"></select>
+            <small style="color:rgba(255,255,255,0.7); font-size:11px; display:block; margin-top:4px;">Seleziona quale Libero (es. Sufferra) deve entrare automaticamente al posto del Centrale in seconda linea.</small>
+          </div>
+
           <button class="btn-bottom" style="width:100%; justify-content:center; background:#00ADB5; margin-top:14px;" onclick="app.applicaFormazioneIniziale()">
             🏐 Applica Formazione Titolare
           </button>

@@ -879,20 +879,32 @@ html, body {
 /* Card laterale per i 2 tasti speciali di attacco (Mani Out e Toccato Muro) */
 .ruota-speciali-card {
   position: absolute;
-  right: 28px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   background-color: rgba(12, 90, 84, 0.95);
   border: 2px solid #00E5FF;
   border-radius: 14px;
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  width: 220px;
+  width: 190px;
   z-index: 15;
   backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.ruota-speciali-card > * {
+  pointer-events: auto;
+}
+
+@media (max-width: 1050px) {
+  .ruota-wheel-container {
+    transform: scale(0.90);
+    transform-origin: center center;
+  }
 }
 
 .speciali-card-header {
