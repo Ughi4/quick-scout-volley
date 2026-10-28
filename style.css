@@ -726,21 +726,117 @@ html, body {
 
 .btn-speciale-maniout { background-color: #E91E63; }
 .btn-speciale-toccato { background-color: #26A69A; }
+.btn-speciale.sub-attiva {
+  background-color: #FE5100 !important;
+  color: #FFFFFF !important;
+  border: 2px solid #FFFFFF !important;
+  box-shadow: 0 0 10px rgba(254, 81, 0, 0.9) !important;
+}
 
 /* =========================================================
-   3. BOTTOM BAR
+   3. BOTTOM BAR CON PANNELLO ANNULLA DOTNEXT STYLE
    ========================================================= */
 .bottom-bar {
-  background-color: #03534E;
-  height: 42px;
+  background-color: #023835;
+  min-height: 46px;
   padding: 4px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 229, 255, 0.2);
 }
 
-.btn-bottom {
-  background-color: #0C8A80;
+.scout-pannello-annulla {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #03534E;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex: 1;
+  max-width: 580px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.annulla-titolo-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: #00E5FF;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.annulla-dettaglio-evento {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.annulla-placeholder {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.annulla-chip-giocatore {
+  font-size: 12px;
+  font-weight: 900;
+  color: #FFFFFF;
+  background: rgba(0,0,0,0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.annulla-chip-fond {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+}
+
+.annulla-chip-val {
+  font-size: 11px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.annulla-chip-val.val-pp { background: #2E7D32; color: #FFF; }
+.annulla-chip-val.val-p { background: #4CAF50; color: #FFF; }
+.annulla-chip-val.val-excl { background: #FF9800; color: #000; }
+.annulla-chip-val.val-m { background: #E53935; color: #FFF; }
+.annulla-chip-val.val-mm { background: #B71C1C; color: #FFF; }
+
+.badge-speciale {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #00ADB5;
+  color: white;
+}
+
+.annulla-chip-avv, .annulla-chip-sost, .annulla-chip-timeout, .annulla-chip-rotazione, .annulla-chip-punti {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.annulla-chip-avv.red { background: rgba(211, 47, 47, 0.4); color: #FFCDD2; border: 1px solid #D32F2F; }
+.annulla-chip-avv.green { background: rgba(46, 125, 50, 0.4); color: #C8E6C9; border: 1px solid #2E7D32; }
+.annulla-chip-sost { background: rgba(0, 173, 181, 0.3); color: #E0F7FA; border: 1px solid #00ADB5; }
+.annulla-chip-timeout { background: rgba(255, 152, 0, 0.3); color: #FFE0B2; border: 1px solid #FF9800; }
+.annulla-chip-rotazione { background: rgba(156, 39, 176, 0.3); color: #E1BEE7; border: 1px solid #9C27B0; }
+.annulla-chip-punti { background: rgba(33, 150, 243, 0.3); color: #BBDEFB; border: 1px solid #2196F3; }
+
+.btn-scout-annulla {
+  background-color: #D32F2F;
   color: white;
   border: none;
   border-radius: 4px;
@@ -748,29 +844,52 @@ html, body {
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: all 0.1s;
+}
+
+.btn-scout-annulla:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn-scout-annulla.disabled, .btn-scout-annulla:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.bottom-bar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-bottom {
+  background-color: #0C8A80;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: transform 0.1s;
+  white-space: nowrap;
 }
 
 .btn-bottom:active {
   transform: scale(0.96);
 }
 
-.btn-annulla {
-  background-color: #C62828;
-}
-
-.ultimo-evento-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
-  font-style: italic;
-  font-weight: 500;
-  max-width: 45%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.btn-fine-set {
+  background-color: #E65100;
 }
 
 /* =========================================================
@@ -1211,4 +1330,203 @@ html, body {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+
+/* =========================================================
+   COMPONENTI RAPIDI, TEMPI SET E REPORT
+   ========================================================= */
+
+/* 1. CAMBIO RAPIDO GRID */
+.cambio-rapido-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cambio-rapido-slot {
+  background: #0C8A80;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cambio-rapido-slot:hover {
+  background: #00ADB5;
+  transform: translateY(-2px);
+  border-color: #FFFFFF;
+}
+
+.cambio-rapido-slot .slot-zona {
+  font-size: 11px;
+  font-weight: 800;
+  color: #00E5FF;
+  display: block;
+}
+
+.cambio-rapido-slot .slot-numero {
+  font-size: 20px;
+  font-weight: 900;
+  color: white;
+  margin: 4px 0;
+}
+
+.cambio-rapido-slot .slot-nome {
+  font-size: 11px;
+  color: #E0F2F1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2. MODALE INIZIO SET */
+.inizio-set-riepilogo-box {
+  background: rgba(0,0,0,0.3);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #00ADB5;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.inizio-set-formazione-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: #0C8A80;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.inizio-set-slot {
+  background: rgba(0,0,0,0.25);
+  border-radius: 4px;
+  padding: 6px;
+  text-align: center;
+}
+
+/* 3. TEMPI SET TABLE */
+.table-tempi-set {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table-tempi-set th, .table-tempi-set td {
+  padding: 8px 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+.table-tempi-set th {
+  background-color: #0C8A80;
+  color: #00E5FF;
+  font-weight: 900;
+}
+
+.input-durata-set {
+  width: 70px;
+  padding: 4px;
+  border-radius: 4px;
+  background: #0C8A80;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  text-align: center;
+  font-weight: bold;
+}
+
+/* 4. REPORT DONUTS & STATISTICHE TABLE */
+.report-box-parziali {
+  background: rgba(0,0,0,0.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  border-left: 4px solid #00ADB5;
+}
+
+.report-donuts-container {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(0,0,0,0.2);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.donut-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0C8A80;
+  padding: 10px;
+  border-radius: 8px;
+  min-width: 110px;
+}
+
+.donut-title {
+  font-size: 12px;
+  font-weight: 900;
+  color: #00E5FF;
+  margin-bottom: 6px;
+}
+
+.donut-sub {
+  font-size: 12px;
+  font-weight: bold;
+  color: #FFFFFF;
+  margin-top: 4px;
+}
+
+.table-statistiche-full {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.table-statistiche-full th, .table-statistiche-full td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.table-statistiche-full th {
+  background-color: #03534E;
+  color: #00E5FF;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.table-statistiche-full tr:hover td {
+  background-color: rgba(0, 173, 181, 0.15);
+}
+
+.filtri-set-container {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-filtro-set {
+  background: #0C8A80;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-filtro-set.attivo {
+  background: #00ADB5;
+  border-color: white;
+  box-shadow: 0 0 6px rgba(0,229,255,0.6);
 }

@@ -187,7 +187,7 @@
           <button class="btn-valutazione btn-val-doppiomeno" onclick="app.registraEventoStandard('==')" title="Errore">==</button>
         </div>
 
-        <!-- DUE TASTI SPECIALI ATTACCO -->
+        <!-- TASTI SPECIALI SOTTO-AZIONI CONTESTUALI (Alzata, Attacco, ecc.) -->
         <div id="riga-speciali-attacco" class="riga-speciali-attacco">
           <button class="btn-speciale btn-speciale-maniout" onclick="app.registraAttaccoManiOut()" title="Attacco tocca il muro ed esce: PUNTO NOSTRO!">
             <span>🖐️ OUT</span> Mani Out
@@ -195,25 +195,71 @@
           <button class="btn-speciale btn-speciale-toccato" onclick="app.registraAttaccoToccatoMuro()" title="Attacco tocca il muro e gli avversari rigiocano: PALLA VIVA!">
             <span>🖐️ 🔄</span> Toccato Muro
           </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('PALLONETTO')" title="Pallonetto">
+            <span>🪶</span> Pallonetto
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('PIAZZATA')" title="Piazzata">
+            <span>🎯</span> Piazzata
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('FAST')" title="Fast">
+            <span>⚡</span> Fast
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('PIPE')" title="Pipe (Seconda linea)">
+            <span>💥</span> Pipe
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('SLASH')" title="Slash su palla filo rete">
+            <span>🗡️</span> Slash
+          </button>
+        </div>
+
+        <!-- TASTI SPECIALI SOTTO-AZIONI ALZATA -->
+        <div id="riga-speciali-alzata" class="riga-speciali-attacco" style="display:none;">
+          <button class="btn-speciale" onclick="app.impostaSubAzione('ALTA')" title="Alzata Alta">
+            <span>🏐</span> Alta
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('MEZZA')" title="Alzata Mezza">
+            <span>📐</span> Mezza
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('TESA')" title="Alzata Tesa">
+            <span>⚡</span> Tesa
+          </button>
+          <button class="btn-speciale" onclick="app.impostaSubAzione('SUPER')" title="Alzata Veloce / Super">
+            <span>🚀</span> Super/Veloce
+          </button>
         </div>
       </section>
 
     </main>
 
-    <!-- 3. BOTTOM BAR -->
+    <!-- 3. BOTTOM BAR CON PANNELLO ANNULLA DOTNEXT STYLE -->
     <footer class="bottom-bar">
-      <button class="btn-bottom btn-annulla" onclick="app.annullaUltimaAzione()" title="Annulla Ultima Azione">
-        <span>↩</span> ANNULLA
-      </button>
+      <!-- Pannello Annulla Autentico Quick Scout -->
+      <div id="scout-pannello-annulla" class="scout-pannello-annulla">
+        <span class="annulla-titolo-label">ULTIMA AZIONE:</span>
+        <div id="annulla-dettaglio-evento" class="annulla-dettaglio-evento">
+          <span class="annulla-placeholder">Pronto per lo scout</span>
+        </div>
+        <button id="btn-scout-annulla" class="btn-scout-annulla" onclick="app.annullaUltimaAzione()" title="Annulla ultima azione">
+          <span>↩</span> ANNULLA
+        </button>
+      </div>
 
-      <span id="ultimo-evento-label" class="ultimo-evento-label">Pronto per lo scout</span>
-
-      <div style="display:flex; gap:8px;">
+      <!-- Controlli Rapidi a Destra -->
+      <div class="bottom-bar-actions">
         <button class="btn-bottom" onclick="app.campoInvertito = !app.campoInvertito; app.render();" title="Inverti i lati del campo">
           <span>⇄</span> Inverti Campo
         </button>
+        <button class="btn-bottom" onclick="app.apriReportInterattivo()" title="Visualizza Statistiche e Report Partita">
+          <span>📊</span> Statistiche
+        </button>
+        <button class="btn-bottom" onclick="app.mostraDialogTempiSet()" title="Gestione Tempi dei Set">
+          <span>⏱️</span> Tempi Set
+        </button>
         <button class="btn-bottom" onclick="document.getElementById('modal-log').classList.add('visibile')" title="Visualizza Log Azioni">
-          <span>📋</span> Log Azioni
+          <span>📋</span> Log
+        </button>
+        <button class="btn-bottom btn-fine-set" onclick="app.concludiSetManuale()" title="Termina set corrente">
+          <span>🏁</span> Fine Set
         </button>
       </div>
     </footer>
@@ -346,14 +392,29 @@
 
       <!-- Tab Navigation -->
       <div class="gestione-tabs">
-        <button id="tab-btn-roster" class="tab-btn attivo" onclick="app.cambiaTabGestione('roster')">👥 Roster Giocatori</button>
+        <button id="tab-btn-squadre" class="tab-btn" onclick="app.cambiaTabGestione('squadre')">🏢 Squadre</button>
+        <button id="tab-btn-roster" class="tab-btn attivo" onclick="app.cambiaTabGestione('roster')">👥 Roster & Convocati</button>
         <button id="tab-btn-formazione" class="tab-btn" onclick="app.cambiaTabGestione('formazione')">🏐 Formazione Iniziale</button>
-        <button id="tab-btn-partita" class="tab-btn" onclick="app.cambiaTabGestione('partita')">⚙️ Squadre & Opzioni</button>
-        <button id="tab-btn-storico" class="tab-btn" onclick="app.cambiaTabGestione('storico')">📁 Storico Partite</button>
+        <button id="tab-btn-partita" class="tab-btn" onclick="app.cambiaTabGestione('partita')">⚙️ Match & Backup</button>
+        <button id="tab-btn-storico" class="tab-btn" onclick="app.cambiaTabGestione('storico')">📁 Storico & Statistiche</button>
       </div>
 
       <div class="modal-body">
-        <!-- TAB 1: ROSTER GIOCATORI -->
+        <!-- TAB 0: GESTIONE MULTI-SQUADRA -->
+        <div id="tab-gestione-squadre" class="tab-content" style="display:none;">
+          <div style="background:rgba(0,0,0,0.2); border-radius:6px; padding:12px; margin-bottom:14px;">
+            <h4 style="font-size:13px; font-weight:900; color:#00E5FF; margin-bottom:8px;">🏢 Gestione Multi-Squadra</h4>
+            <p style="font-size:11px; opacity:0.8; margin-bottom:10px;">Crea o seleziona le diverse squadre della tua società (es. Serie C, Under 18) o avversarie.</p>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+              <input id="input-nuova-squadra-nome" type="text" placeholder="Nome nuova squadra (es. Under 18)" style="flex:1; padding:8px; border-radius:4px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+              <input id="input-nuova-squadra-categoria" type="text" placeholder="Categoria (es. U18M)" style="width:130px; padding:8px; border-radius:4px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+              <button class="btn-bottom" style="background:#00ADB5;" onclick="app.creaNuovaSquadra()">➕ Aggiungi</button>
+            </div>
+            <div id="lista-squadre-container" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- TAB 1: ROSTER GIOCATORI & CONVOCATI -->
         <div id="tab-gestione-roster" class="tab-content">
           <!-- Form Nuovo / Modifica Giocatore -->
           <div class="card-add-giocatore">
@@ -392,7 +453,10 @@
           </div>
 
           <!-- Tabella Lista Giocatori Roster -->
-          <h4 style="font-size:13px; font-weight:900; margin:14px 0 8px 0; color:white;">Elenco Atleti Registrati:</h4>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px 0;">
+            <h4 style="font-size:13px; font-weight:900; color:white; margin:0;">Elenco Atleti & Convocati Gara:</h4>
+            <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#0C8A80;" onclick="app.convocaTuttiGiocatori()">Convoca Tutti</button>
+          </div>
           <div id="lista-roster-container" class="lista-roster-container"></div>
         </div>
 
@@ -440,24 +504,63 @@
           </button>
         </div>
 
-        <!-- TAB 3: SQUADRE & RESET -->
+        <!-- TAB 3: MATCH, OPZIONI & BACKUP -->
         <div id="tab-gestione-partita" class="tab-content" style="display:none;">
-          <label style="display:block; margin-bottom:4px; font-weight:bold;">Nome Squadra Casa:</label>
-          <input id="input-nome-casa" type="text" value="CASA" placeholder="CASA" style="width:100%; padding:8px; border-radius:4px; margin-bottom:12px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; margin-bottom:4px; font-weight:bold;">Squadra Casa:</label>
+              <input id="input-nome-casa" type="text" value="CASA" placeholder="CASA" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:4px; font-weight:bold;">Squadra Ospite:</label>
+              <input id="input-nome-ospite" type="text" value="OSPITI" placeholder="OSPITI" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+            </div>
+          </div>
 
-          <label style="display:block; margin-bottom:4px; font-weight:bold;">Nome Squadra Avversaria:</label>
-          <input id="input-nome-ospite" type="text" value="OSPITI" placeholder="OSPITI" style="width:100%; padding:8px; border-radius:4px; margin-bottom:16px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+            <div>
+              <label style="display:block; margin-bottom:4px; font-weight:bold; font-size:12px;">Tipologia Partita:</label>
+              <select id="select-tipo-partita" style="width:100%; padding:8px; border-radius:4px; font-size:13px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+                <option value="Campionato">Campionato</option>
+                <option value="Coppa">Coppa</option>
+                <option value="Amichevole">Amichevole</option>
+                <option value="Torneo">Torneo</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:4px; font-weight:bold; font-size:12px;">Max Sostituzioni / Set:</label>
+              <select id="select-max-sost" style="width:100%; padding:8px; border-radius:4px; font-size:13px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);" onchange="app.maxSostituzioni = parseInt(this.value); app.salvaStato(); app.render();">
+                <option value="6">6 (Regola Ufficiale FIPAV / FIVB)</option>
+                <option value="8">8 (Regola estesa)</option>
+                <option value="12">12 (Libere giovanili)</option>
+              </select>
+            </div>
+          </div>
 
           <button class="btn-bottom" style="width:100%; justify-content:center; background:#00ADB5; margin-bottom:16px;" onclick="
             app.squadraCasa = document.getElementById('input-nome-casa').value || 'CASA';
             app.squadraOspite = document.getElementById('input-nome-ospite').value || 'OSPITI';
+            app.tipologiaPartita = document.getElementById('select-tipo-partita').value || 'Campionato';
             app.salvaStato();
             app.salvaRosterPermanente();
             app.render();
-            alert('Nomi squadre salvati!');
-          ">Salva Nomi Squadre</button>
+            alert('Dati partita salvati!');
+          ">💾 Salva Dati Match</button>
 
-          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin-bottom:14px;">
+          <!-- BACKUP & RIPRISTINO DATI -->
+          <div style="background:rgba(0,0,0,0.25); border-radius:6px; padding:12px; margin-bottom:16px; border:1px solid rgba(0,229,255,0.3);">
+            <div style="font-weight:900; font-size:13px; margin-bottom:4px; color:#00E5FF;">💾 Backup & Ripristino Dati (File JSON)</div>
+            <p style="font-size:11px; opacity:0.8; margin-bottom:10px;">Salva tutti i roster, partite e statistiche in un file scaricabile sul tuo dispositivo o ripristina un backup precedente.</p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-bottom" style="flex:1; justify-content:center; background:#0C8A80;" onclick="app.esportaBackupCompleto()">
+                <span>⬇️</span> Esporta Backup
+              </button>
+              <label class="btn-bottom" style="flex:1; justify-content:center; background:#0C8A80; cursor:pointer;">
+                <span>⬆️</span> Importa Backup
+                <input type="file" id="input-import-backup" accept=".json" style="display:none;" onchange="app.importaBackupCompleto(event)">
+              </label>
+            </div>
+          </div>
 
           <!-- IMPOSTAZIONI LIBERO -->
           <div style="background:rgba(0,0,0,0.2); border-radius:6px; padding:12px; margin-bottom:16px;">
@@ -483,19 +586,27 @@
           </button>
         </div>
 
-        <!-- TAB 4: STORICO PARTITE -->
+        <!-- TAB 4: STORICO PARTITE & STATISTICHE CUMULATIVE -->
         <div id="tab-gestione-storico" class="tab-content" style="display:none;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
-            <div>
-              <div style="font-weight:900; font-size:14px; color:#00E5FF;">📁 Archivio Partite Salvate</div>
-              <small style="opacity:0.8; font-size:11px;">Rivedi i match passati, ricaricali o scarica il loro report PDF</small>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; gap:8px;">
+              <button id="btn-storico-vista-partite" class="btn-bottom" style="background:#00ADB5; font-size:11px; padding:6px 10px;" onclick="app.cambiaSottoTabStorico('partite')">📁 Partite Archiviate</button>
+              <button id="btn-storico-vista-cumulative" class="btn-bottom" style="background:#0C8A80; font-size:11px; padding:6px 10px;" onclick="app.cambiaSottoTabStorico('cumulative')">📈 Statistiche Stagionali</button>
             </div>
             <button class="btn-bottom" style="padding:6px 12px; font-size:11px; background:#00ADB5;" onclick="app.salvaPartitaAttualeNelloStorico()">
               💾 Salva Match Attuale
             </button>
           </div>
-          <div id="lista-storico-container" style="max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
-            <!-- Riempito dinamicamente da app.renderStoricoPartite() -->
+
+          <!-- Sotto-vista 1: Lista Partite -->
+          <div id="sub-storico-partite">
+            <div id="lista-storico-container" style="max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
+          </div>
+
+          <!-- Sotto-vista 2: Statistiche Cumulative di Stagione -->
+          <div id="sub-storico-cumulative" style="display:none;">
+            <div style="font-size:12px; color:#E0F2F1; margin-bottom:8px;">Totali e percentuali cumulative di squadra e atleti su tutte le partite:</div>
+            <div id="cumulative-statistiche-container" style="max-height:360px; overflow-y:auto;"></div>
           </div>
         </div>
       </div>
@@ -540,6 +651,186 @@
           }
         ">Aggiorna Elenco</button>
         <button class="btn-bottom" onclick="document.getElementById('modal-log').classList.remove('visibile')">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE CAMBIO RAPIDO DALLA PANCHINA
+       ========================================================= -->
+  <div id="modal-cambio-rapido" class="modal-overlay">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 id="cambio-rapido-titolo" class="modal-titolo">🔄 Sostituzione Rapida</h3>
+        <button class="modal-close-btn" onclick="app.chiudiModalCambioRapido()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="cambio-rapido-sottotitolo" style="font-size:13px; color:#E0F2F1; margin-bottom:12px;">
+          Tocca l'atleta in campo da sostituire:
+        </p>
+        <div id="cambio-rapido-griglia" class="cambio-rapido-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="app.apriModalSostituzione(app.atletaPanchinaSelezionato)" style="background:#0C8A80;">Opzioni Avanzate</button>
+        <button class="btn-bottom" onclick="app.chiudiModalCambioRapido()" style="background:#555;">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE INIZIO SET (DotNext Style)
+       ========================================================= -->
+  <div id="modal-inizio-set" class="modal-overlay">
+    <div class="modal-box" style="max-width: 560px;">
+      <div class="modal-header">
+        <h3 id="inizio-set-titolo" class="modal-titolo">🏐 Inizio Nuovo Set</h3>
+      </div>
+      <div class="modal-body">
+        <div id="inizio-set-risultato-prev" class="inizio-set-riepilogo-box"></div>
+
+        <div class="inizio-set-battuta-group">
+          <label style="font-weight:900; font-size:13px; color:#00E5FF; display:block; margin-bottom:8px;">
+            🏐 Squadra al Servizio all'inizio del Set:
+          </label>
+          <div style="display:flex; gap:16px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:bold; cursor:pointer;">
+              <input type="radio" name="radio-inizio-battuta" id="radio-battuta-casa" value="casa" checked>
+              <span id="label-radio-casa">CASA</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:bold; cursor:pointer;">
+              <input type="radio" name="radio-inizio-battuta" id="radio-battuta-ospite" value="ospite">
+              <span id="label-radio-ospite">OSPITI</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <label style="font-weight:900; font-size:13px; color:#00E5FF; display:block; margin-bottom:6px;">
+            🏐 Formazione Titolare per il nuovo Set:
+          </label>
+          <div id="inizio-set-formazione-anteprima" class="inizio-set-formazione-grid"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="app.apriGestioneRoster('formazione')" style="background:#555;">Modifica Formazione</button>
+        <button class="btn-bottom" onclick="app.confermaInizioNuovoSet()" style="background:#00ADB5; font-size:13px; font-weight:900;">▶️ Inizia Set</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE TEMPI DEI SET
+       ========================================================= -->
+  <div id="modal-tempi-set" class="modal-overlay">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-titolo">⏱️ Durata & Tempi dei Set</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-tempi-set').classList.remove('visibile')">✕</button>
+      </div>
+      <div class="modal-body">
+        <table class="table-tempi-set">
+          <thead>
+            <tr>
+              <th>Set</th>
+              <th>Inizio</th>
+              <th>Fine</th>
+              <th>Durata (min)</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-tempi-set"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-bottom" onclick="app.salvaTempiSetManual()" style="background:#00ADB5;">💾 Salva Tempi</button>
+        <button class="btn-bottom" onclick="document.getElementById('modal-tempi-set').classList.remove('visibile')" style="background:#555;">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODALE REPORT INTERATTIVO E STATISTICHE
+       ========================================================= -->
+  <div id="modal-report-interattivo" class="modal-overlay">
+    <div class="modal-box" style="max-width: 900px; width: 95%;">
+      <div class="modal-header">
+        <h3 class="modal-titolo">📊 Report & Statistiche Partita</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-report-interattivo').classList.remove('visibile')">✕</button>
+      </div>
+
+      <!-- Tab Navigation Report -->
+      <div class="gestione-tabs" style="margin-bottom:12px;">
+        <button id="tab-report-btn-riepilogo" class="tab-btn attivo" onclick="app.cambiaTabReport('riepilogo')">📈 Riepilogo & Grafici</button>
+        <button id="tab-report-btn-giocatori" class="tab-btn" onclick="app.cambiaTabReport('giocatori')">👥 Valutazioni Giocatori</button>
+        <button id="tab-report-btn-traiettorie" class="tab-btn" onclick="app.cambiaTabReport('traiettorie')">🏹 Traiettorie Colpi</button>
+      </div>
+
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <!-- TAB RIEPILOGO -->
+        <div id="tab-report-riepilogo" class="tab-content">
+          <div id="report-box-parziali" class="report-box-parziali"></div>
+
+          <h4 style="color:#00E5FF; font-size:13px; font-weight:900; margin:14px 0 8px 0;">Efficienza Fondamentali di Squadra:</h4>
+          <div class="report-donuts-container">
+            <div class="donut-card">
+              <span class="donut-title">Battuta</span>
+              <canvas id="donut-battuta" width="110" height="110"></canvas>
+              <span id="donut-battuta-val" class="donut-sub">0% Eff</span>
+            </div>
+            <div class="donut-card">
+              <span class="donut-title">Ricezione</span>
+              <canvas id="donut-ricezione" width="110" height="110"></canvas>
+              <span id="donut-ricezione-val" class="donut-sub">0% Eff</span>
+            </div>
+            <div class="donut-card">
+              <span class="donut-title">Attacco</span>
+              <canvas id="donut-attacco" width="110" height="110"></canvas>
+              <span id="donut-attacco-val" class="donut-sub">0% Eff</span>
+            </div>
+            <div class="donut-card">
+              <span class="donut-title">Muro</span>
+              <canvas id="donut-muro" width="110" height="110"></canvas>
+              <span id="donut-muro-val" class="donut-sub">0 Pts</span>
+            </div>
+          </div>
+
+          <h4 style="color:#00E5FF; font-size:13px; font-weight:900; margin:16px 0 8px 0;">Andamento Punteggio (Score Progression):</h4>
+          <div style="background:#00776b; border-radius:6px; padding:10px;">
+            <canvas id="canvas-report-score-line" width="700" height="160" style="width:100%; height:auto; display:block;"></canvas>
+          </div>
+        </div>
+
+        <!-- TAB GIOCATORI CON FILTRO SET -->
+        <div id="tab-report-giocatori" class="tab-content" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
+            <div id="filtri-set-container" class="filtri-set-container">
+              <!-- Bottoni Tutti, Set 1, Set 2... -->
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="table-statistiche-report" class="table-statistiche-full">
+              <!-- Riempito dinamicamente -->
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB TRAIETTORIE -->
+        <div id="tab-report-traiettorie" class="tab-content" style="display:none;">
+          <p style="font-size:12px; color:#E0F2F1; margin-bottom:10px;">
+            Mappa vettoriale delle traiettorie registrate sul campo:
+          </p>
+          <div style="display:flex; justify-content:center; background:#023835; border-radius:8px; padding:14px;">
+            <canvas id="canvas-report-traiettorie" width="360" height="520" style="border:2px solid #00ADB5; border-radius:6px; background:#F39C12;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn-bottom" onclick="app.generaReportPDF()" style="background:#00ADB5; font-size:13px;">
+          <span>📄</span> Scarica PDF Ufficiale DotNext
+        </button>
+        <button class="btn-bottom" onclick="document.getElementById('modal-report-interattivo').classList.remove('visibile')" style="background:#555;">
+          Chiudi
+        </button>
       </div>
     </div>
   </div>
