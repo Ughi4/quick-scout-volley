@@ -255,6 +255,30 @@ html, body {
   background-color: #B71C1C;
 }
 
+.btn-pausa-top {
+  background-color: #F39C12;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 4px 10px;
+  height: 38px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: transform 0.1s, background-color 0.2s;
+}
+
+.btn-pausa-top:active {
+  transform: scale(0.96);
+  background-color: #D68910;
+}
+
 /* =========================================================
    2. CORPO CENTRALE A 3 COLONNE
    ========================================================= */
@@ -1553,4 +1577,84 @@ html, body {
   background: #00ADB5;
   border-color: white;
   box-shadow: 0 0 6px rgba(0,229,255,0.6);
+}
+
+/* =========================================================
+   BADGES STATO PARTITA & CARD STORICO
+   ========================================================= */
+.badge-stato-in-corso {
+  background: #27AE60;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 0 6px rgba(39, 174, 96, 0.5);
+}
+
+.badge-stato-conclusa {
+  background: rgba(255, 255, 255, 0.15);
+  color: #E0E0E0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* BOX RIEPILOGO PUNTI SQUADRA */
+.card-punti-squadra {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.punti-squadra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.punto-origine-card {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+  border-left: 3px solid #00ADB5;
+}
+
+.punto-origine-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: #FFFFFF;
+}
+
+.punto-origine-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* MATRICE FONDAMENTALI COMPLETA */
+.table-matrice-header-fond {
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.riga-totale-squadra {
+  background: #023835 !important;
+  font-weight: 900 !important;
+  border-top: 2px solid #00ADB5 !important;
+  border-bottom: 2px solid #00ADB5 !important;
+}
+
+.riga-totale-squadra td {
+  color: #00E5FF !important;
+  font-size: 12px !important;
 }

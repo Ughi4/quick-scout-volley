@@ -98,6 +98,13 @@ class ScoutApp {
     this.formulaGara = '5'; // '5' (al meglio dei 5), '3' (al meglio dei 3), 'libera'
     this.reportMatchData = null;
     this.sottoTabStoricoAttivo = 'partite';
+    this.partitaInCorsoId = null;
+    this.statoPartita = 'in_corso'; // 'in_corso' | 'conclusa'
+    this.sottoVistaReport = 'sintetica'; // 'sintetica' | 'matrice' | 'colpi'
+    this.filtroSetLog = 'tutti';
+    this.ordineLog = 'recente'; // 'recente' | 'cronologico'
+    this.centraliPartitaIds = [];
+    this.liberoEsclusoManualmente = false;
 
     this.initLocalStorage();
     this.initCanvasCampetto();
@@ -196,11 +203,19 @@ class ScoutApp {
         this.formulaGara = data.formulaGara || '5';
         this.maxSostituzioni = data.maxSostituzioni || 6;
         this.giocatoreAttivo = null;
+        this.partitaInCorsoId = data.partitaInCorsoId || null;
+        this.statoPartita = data.statoPartita || 'in_corso';
+        this.sottoVistaReport = data.sottoVistaReport || 'sintetica';
+        this.centraliPartitaIds = Array.isArray(data.centraliPartitaIds) ? data.centraliPartitaIds : [];
+        this.liberoEsclusoManualmente = data.liberoEsclusoManualmente || false;
       } catch (e) {
         console.error('Errore ripristino dati:', e);
       }
     }
     this.autoRiparaStoricoPartite();
+    if (!this.centraliPartitaIds || this.centraliPartitaIds.length === 0) {
+      this.centraliPartitaIds = this.formazione.filter(g => g && g.ruolo === 'C').map(g => g.id);
+    }
   }
 
   salvaRosterPermanente() {
@@ -248,6 +263,11 @@ class ScoutApp {
       storicoEventi: this.storicoEventi,
       storicoSet: this.storicoSet || [],
       tempiSet: this.tempiSet || {},
+      partitaInCorsoId: this.partitaInCorsoId,
+      statoPartita: this.statoPartita || 'in_corso',
+      sottoVistaReport: this.sottoVistaReport || 'sintetica',
+      centraliPartitaIds: this.centraliPartitaIds || [],
+      liberoEsclusoManualmente: this.liberoEsclusoManualmente || false,
       tipologiaPartita: this.tipologiaPartita || 'Campionato',
       formulaGara: this.formulaGara || '5',
       maxSostituzioni: this.maxSostituzioni || 6
@@ -325,8 +345,27 @@ class ScoutApp {
     this.numeroScambio = snap.numeroScambio ?? 0;
   }
 
+  faiRientrareCentralePerLibero(idxZona = 3) {
+    if (this.formazione[idxZona]?.ruolo !== 'L') return;
+    let centraleDaRientrare = null;
+    if (this.liberoSostituitoId) {
+      centraleDaRientrare = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId);
+    }
+    if (!centraleDaRientrare && this.centraliPartitaIds && this.centraliPartitaIds.length > 0) {
+      const idC = this.centraliPartitaIds.find(id => !this.formazione.some(inC => inC.id === id));
+      if (idC) centraleDaRientrare = this.tuttiGiocatori.find(g => g.id === idC);
+    }
+    if (!centraleDaRientrare) {
+      centraleDaRientrare = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
+    }
+    if (centraleDaRientrare) {
+      this.formazione[idxZona] = centraleDaRientrare;
+      this.liberoSostituitoId = null;
+    }
+  }
+
   // =========================================================
-  // LOGICA PUNTEGGI & ROTAZIONI (Point 1 & Point 2)
+  // GESTIONE PUNTEGGI & AZIONI BASE (Point 1 & Point 2)
   // =========================================================
   assegnaPuntoCasa() {
     const snap = this.catturaSnapshotPrecedente();
@@ -338,8 +377,7 @@ class ScoutApp {
       const [p1, p2, p3, p4, p5, p6] = this.formazione;
       this.formazione = [p2, p3, p4, p5, p6, p1];
       if (this.autoLiberoRotazione && this.formazione[3]?.ruolo === 'L') {
-        const c = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId) || this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
-        if (c) { this.formazione[3] = c; this.liberoSostituitoId = null; }
+        this.faiRientrareCentralePerLibero(3);
       }
     }
     this.fondamentaleSelezionato = 'battuta';
@@ -395,8 +433,7 @@ class ScoutApp {
       const [p1, p2, p3, p4, p5, p6] = this.formazione;
       this.formazione = [p2, p3, p4, p5, p6, p1];
       if (this.autoLiberoRotazione && this.formazione[3]?.ruolo === 'L') {
-        const c = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId) || this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
-        if (c) { this.formazione[3] = c; this.liberoSostituitoId = null; }
+        this.faiRientrareCentralePerLibero(3);
       }
     }
     this.fondamentaleSelezionato = 'battuta';
@@ -442,20 +479,11 @@ class ScoutApp {
     const [p1, p2, p3, p4, p5, p6] = this.formazione;
     this.formazione = [p2, p3, p4, p5, p6, p1];
 
+    this.liberoEsclusoManualmente = false;
     if (this.autoLiberoRotazione) {
       const idxZona4 = 3;
       if (this.formazione[idxZona4]?.ruolo === 'L') {
-        let centraleDaRientrare = null;
-        if (this.liberoSostituitoId) {
-          centraleDaRientrare = this.tuttiGiocatori.find(g => g.id === this.liberoSostituitoId);
-        }
-        if (!centraleDaRientrare) {
-          centraleDaRientrare = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
-        }
-        if (centraleDaRientrare) {
-          this.formazione[idxZona4] = centraleDaRientrare;
-          this.liberoSostituitoId = null;
-        }
+        this.faiRientrareCentralePerLibero(idxZona4);
       }
     }
 
@@ -532,6 +560,7 @@ class ScoutApp {
   }
 
   verificaEntrataAutomaticaLibero() {
+    if (this.liberoEsclusoManualmente) return;
     const libero = this.getLiberoDesignato();
     if (!libero) return;
     const giaInCampo = this.formazione.some(g => g.ruolo === 'L');
@@ -617,9 +646,25 @@ class ScoutApp {
         return;
       }
       this.sostituzioniCasa++;
+      if (vecchio.ruolo === 'C' && nuovo.ruolo === 'C') {
+        const idxC = this.centraliPartitaIds.indexOf(vecchio.id);
+        if (idxC !== -1) this.centraliPartitaIds[idxC] = nuovo.id;
+        else this.centraliPartitaIds.push(nuovo.id);
+      }
     } else {
       if (nuovo.ruolo === 'L') {
         this.liberoDesignatoId = nuovo.id;
+        if (vecchio.ruolo === 'C') {
+          this.liberoSostituitoId = vecchio.id;
+          this.liberoEsclusoManualmente = false;
+          if (!this.centraliPartitaIds.includes(vecchio.id)) this.centraliPartitaIds.push(vecchio.id);
+        }
+      } else if (vecchio.ruolo === 'L') {
+        if (nuovo.ruolo === 'C') {
+          this.liberoSostituitoId = null;
+          this.liberoEsclusoManualmente = true; // Lo scout ha tolto a mano il libero
+          if (!this.centraliPartitaIds.includes(nuovo.id)) this.centraliPartitaIds.push(nuovo.id);
+        }
       }
     }
 
@@ -783,8 +828,7 @@ class ScoutApp {
         const [p1, p2, p3, p4, p5, p6] = this.formazione;
         this.formazione = [p2, p3, p4, p5, p6, p1];
         if (this.autoLiberoRotazione && this.formazione[3]?.ruolo === 'L') {
-          const c = this.tuttiGiocatori.find(item => item.id === this.liberoSostituitoId) || this.tuttiGiocatori.find(item => item.ruolo === 'C' && !this.formazione.some(inC => inC.id === item.id));
-          if (c) { this.formazione[3] = c; this.liberoSostituitoId = null; }
+          this.faiRientrareCentralePerLibero(3);
         }
       }
     } else if (valutazioneId === '==') {
@@ -895,33 +939,119 @@ class ScoutApp {
     this.tempiSet[setFinito].durataMinuti = Math.max(1, Math.round(ms / 60000));
 
     if (!this.storicoSet) this.storicoSet = [];
-    this.storicoSet.push({
+    const idxSet = this.storicoSet.findIndex(s => s.set === setFinito);
+    const setDataObj = {
       set: setFinito,
       puntiCasa: pC,
       puntiOspite: pO,
       vintoCasa: vintoCasa,
       durataMinuti: this.tempiSet[setFinito].durataMinuti
-    });
+    };
+    if (idxSet !== -1) {
+      this.storicoSet[idxSet] = setDataObj;
+    } else {
+      this.storicoSet.push(setDataObj);
+    }
 
-    if (vintoCasa) this.setVintiCasa++;
-    else this.setVintiOspite++;
+    // RICALCOLA SEMPRE I SET VINTI DAI SET EFFETTIVI DI QUESTA PARTITA
+    let vCasa = 0, vOspite = 0;
+    this.storicoSet.forEach(s => {
+      if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vCasa++;
+      else vOspite++;
+    });
+    this.setVintiCasa = vCasa;
+    this.setVintiOspite = vOspite;
 
     const isBestOf3 = (this.formulaGara === '3');
     const sogliaVittoria = isBestOf3 ? 2 : 3;
 
     if (this.formulaGara !== 'libera' && (this.setVintiCasa >= sogliaVittoria || this.setVintiOspite >= sogliaVittoria)) {
+      this.statoPartita = 'conclusa';
       alert("🏆 Partita Terminata!\nRisultato finale: " + this.squadraCasa + " " + this.setVintiCasa + " - " + this.setVintiOspite + " " + this.squadraOspite);
-      this.salvaPartitaAttualeNelloStorico();
+      this.salvaPartitaAttualeNelloStorico(false, true);
       this.salvaStato();
       this.render();
       this.apriReportInterattivo();
       return;
     }
 
+    this.statoPartita = 'in_corso';
     this.setCorrente++;
+    this.puntiCasa = 0;
+    this.puntiOspite = 0;
+    this.numeroPunto = 1;
+    this.numeroScambio = 0;
+    this.archiviaPartitaCorrente(false, false);
     this.salvaStato();
     this.render();
     this.apriModalInizioSet(setFinito, pC, pO, vintoCasa);
+  }
+
+  sospendiPartitaInCorso() {
+    this.statoPartita = 'in_corso';
+    this.archiviaPartitaCorrente(false, false);
+    this.salvaStato();
+    this.render();
+    alert("💾 Partita salvata con successo nello Storico!\n\n" +
+      "Stato: 🟢 IN CORSO (Set " + this.setCorrente + ", punteggio: " + this.puntiCasa + " - " + this.puntiOspite + ")\n" +
+      "Squadre: " + this.squadraCasa + " vs " + this.squadraOspite + " (" + this.setVintiCasa + "-" + this.setVintiOspite + ")\n\n" +
+      "Puoi chiudere l'app o spegnere il tablet. Quando riapri, tocca '▶️ Riprendi Scout' nello Storico Partite per ripartire esattamente da qui.");
+  }
+
+  sospendiPartitaDopoSet() {
+    const modal = document.getElementById('modal-inizio-set');
+    if (modal) modal.classList.remove('visibile');
+    this.sospendiPartitaInCorso();
+  }
+
+  riprendiPartitaDaStorico(id) {
+    const p = this.archivioPartite.find(item => item.id === id);
+    if (!p) return;
+
+    this.partitaInCorsoId = p.id;
+    this.statoPartita = 'in_corso';
+    this.squadraCasa = p.squadraCasa || "CASA";
+    this.squadraOspite = p.squadraOspite || "OSPITI";
+    this.setCorrente = p.setCorrente ?? 1;
+    this.puntiCasa = p.puntiCasa ?? 0;
+    this.puntiOspite = p.puntiOspite ?? 0;
+    this.haPallaCasa = p.haPallaCasa ?? true;
+    this.formulaGara = p.formulaGara || '5';
+    this.tipologiaPartita = p.tipologiaPartita || 'Campionato';
+    this.storicoSet = JSON.parse(JSON.stringify(p.storicoSet || []));
+    this.storicoEventi = JSON.parse(JSON.stringify(p.storicoEventi || []));
+    this.tempiSet = JSON.parse(JSON.stringify(p.tempiSet || {}));
+    if (p.tuttiGiocatori && p.tuttiGiocatori.length >= 6) {
+      this.tuttiGiocatori = JSON.parse(JSON.stringify(p.tuttiGiocatori));
+    }
+    if (p.formazioneIds && Array.isArray(p.formazioneIds)) {
+      this.formazione = p.formazioneIds.map(fid => this.tuttiGiocatori.find(g => g.id === fid) || this.tuttiGiocatori[0]);
+    }
+    if (p.centraliPartitaIds && Array.isArray(p.centraliPartitaIds)) {
+      this.centraliPartitaIds = [...p.centraliPartitaIds];
+    } else {
+      this.centraliPartitaIds = this.formazione.filter(g => g && g.ruolo === 'C').map(g => g.id);
+    }
+    this.liberoDesignatoId = p.liberoDesignatoId ?? this.liberoDesignatoId;
+    this.liberoSostituitoId = p.liberoSostituitoId ?? null;
+    this.liberoEsclusoManualmente = false;
+
+    let vC = 0, vO = 0;
+    this.storicoSet.forEach(s => {
+      if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vC++;
+      else vO++;
+    });
+    this.setVintiCasa = vC;
+    this.setVintiOspite = vO;
+
+    this.giocatoreAttivo = null;
+    this.salvaStato();
+    this.render();
+
+    const modalGestione = document.getElementById('modal-gestione');
+    if (modalGestione) modalGestione.classList.remove('visibile');
+
+    alert("▶️ Partita ripresa con successo!\nSei al Set " + this.setCorrente + " (" + this.puntiCasa + " - " + this.puntiOspite + ").\nEventi e parziali sono unificati.");
   }
 
   apriModalInizioSet(setConcluso, pCasa, pOspite, vintoCasa) {
@@ -1783,7 +1913,7 @@ class ScoutApp {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(254, 81, 0);
-      doc.text(`${tipologia.toUpperCase()} - STAGIONE ${new Date().getFullYear()}/${new Date().getFullYear() + 1}`, 42, 35);
+      doc.text(`${tipologia.toUpperCase()} - STAGIONE ${new Date().getFullYear()}/${new Date().getFullYear() + 1}`, 42, 34);
 
       let durataTotale = 0;
       let setInfoStr = "";
@@ -1798,8 +1928,22 @@ class ScoutApp {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(70, 70, 70);
-        doc.text(`Tempi Set: ${setInfoStr}(Totale: ${durataTotale}')`, 42, 38.5);
+        doc.text(`Tempi Set: ${setInfoStr}(Totale: ${durataTotale}')`, 42, 37.5);
       }
+
+      // Riepilogo Somma Punti Squadra nel Referto
+      const attPtiSquadra = matchStats['attacco']?.pp || 0;
+      const aceSquadra = matchStats['battuta']?.pp || 0;
+      const murPtiSquadra = matchStats['muro']?.pp || 0;
+      let tabellonePtiCasa = 0;
+      (storicoSet || []).forEach(s => { tabellonePtiCasa += (s.puntiCasa || 0); });
+      const errAvvSquadra = Math.max(0, tabellonePtiCasa - (attPtiSquadra + aceSquadra + murPtiSquadra));
+      const totPtiSquadra = attPtiSquadra + aceSquadra + murPtiSquadra + errAvvSquadra;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(0, 119, 107);
+      doc.text(`Punti Squadra: ${totPtiSquadra} Pti (Attacchi: ${attPtiSquadra} • Aces: ${aceSquadra} • Muri: ${murPtiSquadra} • Errori Avv: ${errAvvSquadra})`, 42, 40.5);
 
       // SEZIONE 1: Statistiche / Efficienza generale
       doc.setFont("helvetica", "bold");
@@ -2058,6 +2202,86 @@ class ScoutApp {
         rowY += 6.2;
       });
 
+      // RIGA TOTALE SQUADRA SUL REFERTO PDF
+      let teamPtiTot = 0, teamAcesTot = 0, teamBatTot = 0;
+      let teamKillTot = 0, teamAttTot = 0, teamErrAttTot = 0, teamMurAttTot = 0;
+      let teamPerfRicTot = 0, teamPosRicTot = 0, teamRicTot = 0, teamMurPtiTot = 0;
+
+      playerRows.forEach(st => {
+        teamPtiTot += st.totPunti;
+        teamAcesTot += st.aces;
+        teamBatTot += st.battuteTot;
+        teamKillTot += st.killAttacco;
+        teamAttTot += st.attacchiTot;
+        teamErrAttTot += st.errAttacco;
+        teamMurAttTot += st.muratiAttacco;
+        teamPerfRicTot += st.perfRicezione;
+        teamPosRicTot += st.posRicezione;
+        teamRicTot += st.ricezioniTot;
+        teamMurPtiTot += st.muriPunto;
+      });
+
+      const teamAttEffPct = teamAttTot > 0 ? Math.round(((teamKillTot - teamErrAttTot - teamMurAttTot) / teamAttTot) * 100) : 0;
+      const teamRicPosPct = teamRicTot > 0 ? Math.round(((teamPerfRicTot + teamPosRicTot) / teamRicTot) * 100) : 0;
+
+      doc.setFillColor(3, 83, 78);
+      doc.rect(15, rowY, 180, 6.5, 'F');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("TOT", 18, rowY + 4.5);
+      doc.text("TOTALE SQUADRA", 24, rowY + 4.5);
+      doc.text("-", 62, rowY + 4.5);
+      doc.setTextColor(104, 202, 196);
+      doc.text(String(teamPtiTot), 76, rowY + 4.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${teamAcesTot}/${teamBatTot}`, 88, rowY + 4.5);
+      doc.text(`${teamKillTot}/${teamAttTot}`, 108, rowY + 4.5);
+      doc.text(`${teamAttEffPct}%`, 128, rowY + 4.5);
+      doc.text(String(teamPerfRicTot), 144, rowY + 4.5);
+      doc.text(`${teamRicPosPct}%`, 160, rowY + 4.5);
+      doc.text(String(teamMurPtiTot), 180, rowY + 4.5);
+
+      rowY += 10;
+
+      // BOX DETTAGLIO COLPI & TIPOLOGIE ATTACCO SUL REFERTO PDF
+      let pallonetti = 0, piazzate = 0, fast = 0, pipe = 0, maniOut = 0, toccatiMuro = 0;
+      let superAlz = 0, tesaAlz = 0, mezzaAlz = 0, altaAlz = 0;
+      (storicoEventi || []).forEach(ev => {
+        const sp = (ev.speciale || '').toUpperCase();
+        if (ev.fondamentale === 'attacco') {
+          if (sp === 'PALLONETTO') pallonetti++;
+          else if (sp === 'PIAZZATA') piazzate++;
+          else if (sp === 'FAST') fast++;
+          else if (sp === 'PIPE') pipe++;
+          else if (sp === 'MANI OUT') maniOut++;
+          else if (sp === 'TOCCATO MURO') toccatiMuro++;
+        } else if (ev.fondamentale === 'alzata') {
+          if (sp === 'SUPER' || sp.includes('VELOCE')) superAlz++;
+          else if (sp === 'TESA') tesaAlz++;
+          else if (sp === 'MEZZA') mezzaAlz++;
+          else if (sp === 'ALTA') altaAlz++;
+        }
+      });
+
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(15, rowY, 180, 16, 1.5, 1.5, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(254, 81, 0);
+      doc.text("Dettaglio Tipologia Attacchi:", 18, rowY + 5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Pallonetto: ${pallonetti}  •  Piazzata: ${piazzate}  •  Fast: ${fast}  •  Pipe: ${pipe}  •  Mani Out: ${maniOut}  •  Toccato Muro: ${toccatiMuro}`, 18, rowY + 9);
+
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 119, 107);
+      doc.text("Dettaglio Tipologia Alzate:", 18, rowY + 13);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Super/Veloce: ${superAlz}  •  Tesa: ${tesaAlz}  •  Mezza: ${mezzaAlz}  •  Alta: ${altaAlz}`, 58, rowY + 13);
+
       // FOOTER PAGINA 2: Separatore rosso, pag. 2-2 e data corrente
       doc.setDrawColor(254, 81, 0); // #fe5100
       doc.setLineWidth(0.5);
@@ -2173,10 +2397,9 @@ class ScoutApp {
     const vintoCasa = this.puntiCasa > this.puntiOspite;
     const confermato = confirm("Vuoi dichiarare CONCLUSA la partita tra " + this.squadraCasa + " e " + this.squadraOspite + "?\n\n" +
       "Set Corrente (" + this.setCorrente + "): " + this.puntiCasa + " - " + this.puntiOspite + "\n" +
-      "Il set attuale verrà memorizzato e la partita archiviata con referto completo.");
+      "Il set attuale verrà memorizzato e la partita archiviata definitivamente con referto completo.");
     if (!confermato) return;
 
-    // Se nel set corrente sono state registrate azioni o punti, finalizzalo
     if (this.puntiCasa > 0 || this.puntiOspite > 0 || this.storicoEventi.some(e => e.set === this.setCorrente)) {
       if (!this.storicoSet) this.storicoSet = [];
       const idx = this.storicoSet.findIndex(s => s.set === this.setCorrente);
@@ -2195,7 +2418,6 @@ class ScoutApp {
       }
     }
 
-    // Ricalcola esattamente il punteggio dei set
     let vC = 0, vO = 0;
     (this.storicoSet || []).forEach(s => {
       if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vC++;
@@ -2203,13 +2425,113 @@ class ScoutApp {
     });
     this.setVintiCasa = vC;
     this.setVintiOspite = vO;
+    this.statoPartita = 'conclusa';
 
-    this.salvaPartitaAttualeNelloStorico();
+    this.salvaPartitaAttualeNelloStorico(false, true);
     this.salvaStato();
     this.render();
 
     alert("🏆 Partita Terminata!\nRisultato finale: " + this.squadraCasa + " " + this.setVintiCasa + " - " + this.setVintiOspite + " " + this.squadraOspite + "\n\nApertura Report e Statistiche...");
     this.apriReportInterattivo();
+  }
+
+  apriModalLog() {
+    const modal = document.getElementById('modal-log');
+    if (!modal) return;
+    this.renderLogAzioni();
+    modal.classList.add('visibile');
+  }
+
+  renderLogAzioni() {
+    const filtriContainer = document.getElementById('filtri-log-set');
+    const body = document.getElementById('modal-log-body');
+    const badgeTot = document.getElementById('log-totale-badge');
+    const selOrdine = document.getElementById('select-log-ordine');
+    if (selOrdine && this.ordineLog) selOrdine.value = this.ordineLog;
+
+    if (!filtriContainer || !body) return;
+
+    filtriContainer.innerHTML = '';
+    const setList = ['tutti', 1, 2, 3, 4, 5];
+    setList.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-filtro-set' + (this.filtroSetLog === s ? ' attivo' : '');
+      btn.textContent = (s === 'tutti') ? 'Tutti i Set' : 'Set ' + s;
+      btn.onclick = () => {
+        this.filtroSetLog = s;
+        this.renderLogAzioni();
+      };
+      filtriContainer.appendChild(btn);
+    });
+
+    const m = this.reportMatchData;
+    const evs = m ? (m.storicoEventi || []) : (this.storicoEventi || []);
+
+    let filtrati = (this.filtroSetLog === 'tutti')
+      ? [...evs]
+      : evs.filter(e => e.set === this.filtroSetLog);
+
+    if (badgeTot) badgeTot.textContent = filtrati.length + ' azioni';
+
+    if (filtrati.length === 0) {
+      body.innerHTML = '<div style="text-align:center; padding:30px 10px; color:rgba(255,255,255,0.7); font-size:13px;">Nessuna azione registrata per questo filtro.<br><small style="opacity:0.8;">Tocca un giocatore sul campetto o usa la ruota per registrare azioni.</small></div>';
+      return;
+    }
+
+    if (this.ordineLog === 'recente') {
+      filtrati.reverse();
+    }
+
+    const fondBadgeColors = {
+      battuta: '#F39C12',
+      ricezione: '#9C27B0',
+      attacco: '#E65100',
+      muro: '#00ADB5',
+      difesa: '#27AE60',
+      alzata: '#E74C3C',
+      punteggio: '#34495E',
+      punto_avv: '#C0392B',
+      errore_avv: '#2980B9',
+      rotazione: '#16A085',
+      sostituzione: '#8E44AD'
+    };
+
+    const valBadges = {
+      '++': '<span style="background:#27AE60; color:white; padding:2px 6px; border-radius:3px; font-weight:900;"># (++)</span>',
+      '+': '<span style="background:#2ECC71; color:black; padding:2px 6px; border-radius:3px; font-weight:bold;">+</span>',
+      '!': '<span style="background:#F1C40F; color:black; padding:2px 6px; border-radius:3px; font-weight:bold;">! (/)</span>',
+      '-': '<span style="background:#E67E22; color:white; padding:2px 6px; border-radius:3px; font-weight:bold;">-</span>',
+      '==': '<span style="background:#E74C3C; color:white; padding:2px 6px; border-radius:3px; font-weight:900;">= (--)</span>'
+    };
+
+    let html = '<table class="table-statistiche-full" style="width:100%; border-collapse:collapse; font-size:11px;">' +
+      '<thead><tr style="background:#03534E; color:#00E5FF;">' +
+      '<th>Orario</th><th>Set</th><th>Score</th><th style="text-align:left;">Atleta</th><th>Fondamentale</th><th>Valutazione</th><th>Tipologia / Note</th>' +
+      '</tr></thead><tbody>';
+
+    filtrati.forEach(ev => {
+      const g = ev.giocatore;
+      const nom = g ? ([g.cognome, g.nome].filter(Boolean).join(' ') || ('#' + g.numero)) : '-';
+      const numStr = g ? ('#' + g.numero) : '';
+      const fCol = fondBadgeColors[ev.fondamentale || ev.tipo] || '#555';
+      const valBadge = valBadges[ev.valutazione] || (ev.valutazione ? ('<span style="font-weight:bold;">' + ev.valutazione + '</span>') : '-');
+      const scoreStr = (ev.puntiCasa !== undefined && ev.puntiOspite !== undefined) ? (ev.puntiCasa + ' - ' + ev.puntiOspite) : '-';
+      const specStr = ev.speciale ? ('<span style="color:#00E5FF; font-weight:bold;">' + ev.speciale + '</span>') : (ev.dettagli ? JSON.stringify(ev.dettagli) : '-');
+      const fondLabel = (ev.fondamentale || ev.tipo || '').toUpperCase();
+
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">' +
+        '<td style="color:rgba(255,255,255,0.6); padding:5px 6px; white-space:nowrap;">' + (ev.orario || '-') + '</td>' +
+        '<td style="font-weight:bold; color:#00E5FF; padding:5px 6px;">Set ' + (ev.set || 1) + '</td>' +
+        '<td style="font-weight:bold; padding:5px 6px; white-space:nowrap;">' + scoreStr + '</td>' +
+        '<td style="text-align:left; padding:5px 6px; white-space:nowrap;"><strong style="color:#2ECC71;">' + numStr + '</strong> ' + nom + '</td>' +
+        '<td style="padding:5px 6px;"><span style="background:' + fCol + '; color:white; padding:2px 6px; border-radius:3px; font-weight:bold; font-size:10px;">' + fondLabel + '</span></td>' +
+        '<td style="padding:5px 6px;">' + valBadge + '</td>' +
+        '<td style="padding:5px 6px;">' + specStr + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    body.innerHTML = html;
   }
 
   // =========================================================
@@ -2492,18 +2814,19 @@ class ScoutApp {
   }
 
   avviaNuovaPartita() {
-    // Se c'erano azioni registrate, archivia automaticamente la partita precedente!
     if (this.storicoEventi && this.storicoEventi.length > 0) {
-      if (!confirm('Vuoi avviare una nuova partita azzerando punteggi, set ed eventi?\n\nLa partita attuale verrà salvata automaticamente nello "Storico Partite" e il tuo Roster rimarrà conservato.')) {
+      if (!confirm('Vuoi avviare una nuova partita azzerando punteggi, set ed eventi?\n\nLa partita attuale verrà archiviata nello "Storico Partite" e il tuo Roster rimarrà conservato.')) {
         return;
       }
-      this.archiviaPartitaCorrente(false); // archivia senza mostrare alert invasivi
+      this.archiviaPartitaCorrente(false, false);
     } else {
       if (!confirm('Vuoi avviare una nuova partita azzerando punteggi e set?\n\nIl tuo Roster rimarrà conservato.')) {
         return;
       }
     }
 
+    this.partitaInCorsoId = Date.now();
+    this.statoPartita = 'in_corso';
     this.puntiCasa = 0;
     this.puntiOspite = 0;
     this.setCorrente = 1;
@@ -2516,12 +2839,13 @@ class ScoutApp {
     this.sostituzioniCasa = 0;
     this.storicoSet = [];
     this.storicoEventi = [];
+    this.tempiSet = { 1: { inizio: Date.now(), fine: null, durataMinuti: 0 } };
     this.numeroPunto = 1;
     this.numeroScambio = 0;
     this.fondamentaleSelezionato = 'battuta';
     this.liberoSostituitoId = null;
+    this.liberoEsclusoManualmente = false;
 
-    // Se il libero era in campo al posto di un centrale, ripristina il centrale titolare
     const indexLibero = this.formazione.findIndex(g => g.ruolo === 'L');
     if (indexLibero !== -1) {
       const centrale = this.tuttiGiocatori.find(g => g.ruolo === 'C' && !this.formazione.some(inC => inC.id === g.id));
@@ -2529,6 +2853,7 @@ class ScoutApp {
         this.formazione[indexLibero] = centrale;
       }
     }
+    this.centraliPartitaIds = this.formazione.filter(g => g.ruolo === 'C').map(g => g.id);
     this.giocatoreAttivo = null;
 
     this.salvaStato();
@@ -2537,21 +2862,20 @@ class ScoutApp {
 
     const modal = document.getElementById('modal-gestione');
     if (modal) modal.classList.remove('visibile');
-    alert('Nuova partita avviata con successo! Punteggi azzerati, il tuo Roster è pronto.');
+    alert('Nuova partita avviata con successo! Punteggi azzerati, pronto per il Set 1.');
   }
 
   // =========================================================
   // ARCHIVIO & STORICO PARTITE
   // =========================================================
-  archiviaPartitaCorrente(mostraAlert = true) {
+  archiviaPartitaCorrente(mostraAlert = true, conclusaDefinitiva = false) {
     if (!this.storicoEventi || this.storicoEventi.length === 0) {
       if (mostraAlert) alert("Nessuna azione registrata in questa partita da archiviare.");
       return;
     }
 
-    // Assicurati che lo storicoSet includa il set corrente se giocato
     if (!this.storicoSet) this.storicoSet = [];
-    if (this.puntiCasa > 0 || this.puntiOspite > 0 || this.storicoEventi.some(e => e.set === this.setCorrente)) {
+    if (conclusaDefinitiva && (this.puntiCasa > 0 || this.puntiOspite > 0)) {
       const idx = this.storicoSet.findIndex(s => s.set === this.setCorrente);
       const vintoCasa = this.puntiCasa > this.puntiOspite;
       const durata = (this.tempiSet && this.tempiSet[this.setCorrente]?.durataMinuti) || 20;
@@ -2569,7 +2893,6 @@ class ScoutApp {
       }
     }
 
-    // Ricalcola set vinti esattamente da tutti i set
     let vCasa = 0, vOspite = 0;
     this.storicoSet.forEach(s => {
       if (s.vintoCasa || s.puntiCasa > s.puntiOspite) vCasa++;
@@ -2582,33 +2905,51 @@ class ScoutApp {
     const dataStr = `${ora.getDate().toString().padStart(2, '0')}/${(ora.getMonth() + 1).toString().padStart(2, '0')}/${ora.getFullYear()} ${ora.getHours().toString().padStart(2, '0')}:${ora.getMinutes().toString().padStart(2, '0')}`;
 
     if (!this.archivioPartite) this.archivioPartite = [];
+    if (!this.partitaInCorsoId) {
+      this.partitaInCorsoId = Date.now();
+    }
 
-    // Controlla se la partita corrente è già presente nello storico per aggiornarla invece di duplicarla
-    const existingIndex = this.archivioPartite.findIndex(p => 
-      p.squadraCasa === this.squadraCasa && 
-      p.squadraOspite === this.squadraOspite &&
-      (Math.abs((p.id || 0) - (this.partitaInCorsoId || Date.now())) < 4 * 3600 * 1000)
-    );
+    let existingIndex = this.archivioPartite.findIndex(p => p.id === this.partitaInCorsoId);
+    if (existingIndex === -1) {
+      existingIndex = this.archivioPartite.findIndex(p => 
+        p.squadraCasa === this.squadraCasa && 
+        p.squadraOspite === this.squadraOspite &&
+        p.stato === 'in_corso'
+      );
+    }
 
-    const matchId = (existingIndex !== -1 && this.archivioPartite[existingIndex].id) ? this.archivioPartite[existingIndex].id : (this.partitaInCorsoId || Date.now());
+    const matchId = (existingIndex !== -1 && this.archivioPartite[existingIndex].id) ? this.archivioPartite[existingIndex].id : this.partitaInCorsoId;
     this.partitaInCorsoId = matchId;
+
+    const isBestOf3 = (this.formulaGara === '3');
+    const sogliaVittoria = isBestOf3 ? 2 : 3;
+    const vittoriaRaggiunta = (this.formulaGara !== 'libera') && (vCasa >= sogliaVittoria || vOspite >= sogliaVittoria);
+    const stato = (conclusaDefinitiva || vittoriaRaggiunta) ? 'conclusa' : 'in_corso';
+    this.statoPartita = stato;
 
     const partita = {
       id: matchId,
+      stato: stato,
       data: (existingIndex !== -1 ? this.archivioPartite[existingIndex].data : dataStr),
       dataAggiornamento: dataStr,
       squadraCasa: this.squadraCasa,
       squadraOspite: this.squadraOspite,
+      formulaGara: this.formulaGara,
+      tipologiaPartita: this.tipologiaPartita,
       setVintiCasa: this.setVintiCasa,
       setVintiOspite: this.setVintiOspite,
       setCorrente: this.setCorrente,
       puntiCasa: this.puntiCasa,
       puntiOspite: this.puntiOspite,
+      haPallaCasa: this.haPallaCasa,
       storicoSet: JSON.parse(JSON.stringify(this.storicoSet || [])),
       totaleAzioni: this.storicoEventi.length,
       storicoEventi: JSON.parse(JSON.stringify(this.storicoEventi)),
       tuttiGiocatori: JSON.parse(JSON.stringify(this.tuttiGiocatori)),
       formazioneIds: this.formazione.map(g => g.id),
+      centraliPartitaIds: this.centraliPartitaIds,
+      liberoDesignatoId: this.liberoDesignatoId,
+      liberoSostituitoId: this.liberoSostituitoId,
       tempiSet: JSON.parse(JSON.stringify(this.tempiSet || {}))
     };
 
@@ -2622,12 +2963,13 @@ class ScoutApp {
     this.renderStoricoPartite();
 
     if (mostraAlert) {
-      alert(`Partita "${this.squadraCasa} vs ${this.squadraOspite}" (${this.setVintiCasa}-${this.setVintiOspite}) salvata con successo nello Storico!`);
+      const msgStato = (stato === 'in_corso') ? 'in corso (sospesa)' : 'conclusa';
+      alert(`Partita "${this.squadraCasa} vs ${this.squadraOspite}" (${this.setVintiCasa}-${this.setVintiOspite}) salvata nello Storico come ${msgStato}!`);
     }
   }
 
-  salvaPartitaAttualeNelloStorico() {
-    this.archiviaPartitaCorrente(true);
+  salvaPartitaAttualeNelloStorico(mostraAlert = true, conclusaDefinitiva = false) {
+    this.archiviaPartitaCorrente(mostraAlert, conclusaDefinitiva);
   }
 
   caricaPartitaDaStorico(id) {
@@ -2704,15 +3046,29 @@ class ScoutApp {
       card.style.gap = '8px';
       card.style.padding = '10px 12px';
 
+      const isInCorso = (p.stato === 'in_corso');
+      const badgeStatoHtml = isInCorso
+        ? `<span class="badge-stato-in-corso">🟢 IN CORSO • Set ${p.setCorrente || 1} (${p.puntiCasa || 0}-${p.puntiOspite || 0})</span>`
+        : `<span class="badge-stato-conclusa">🏆 CONCLUSA</span>`;
+
       const parzialiStr = (p.storicoSet && p.storicoSet.length > 0)
         ? p.storicoSet.map(s => `${s.puntiCasa}-${s.puntiOspite}`).join(', ')
-        : `${p.puntiCasa}-${p.puntiOspite} (Set ${p.setCorrente})`;
+        : `${p.puntiCasa || 0}-${p.puntiOspite || 0} (Set ${p.setCorrente || 1})`;
+
+      const btnRiprendiHtml = isInCorso
+        ? `<button class="btn-bottom" style="padding:5px 12px; font-size:11px; font-weight:900; background:#00ADB5; color:white;" onclick="app.riprendiPartitaDaStorico(${p.id})" title="Riprendi lo scout di questa partita dal set e punteggio esatto">
+            ▶️ Riprendi Scout
+          </button>`
+        : `<button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#0C8A80;" onclick="app.caricaPartitaDaStorico(${p.id})" title="Ricarica Partita nello Scout">
+            📂 Carica
+          </button>`;
 
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
-            <div style="font-weight:900; font-size:15px; color:white;">
+            <div style="font-weight:900; font-size:15px; color:white; display:flex; align-items:center; gap:8px;">
               ${p.squadraCasa} vs ${p.squadraOspite}
+              ${badgeStatoHtml}
             </div>
             <div style="font-size:11px; opacity:0.75; margin-top:2px;">
               📅 ${p.data} • 🏐 ${p.totaleAzioni || p.storicoEventi?.length || 0} azioni scoutate
@@ -2727,15 +3083,13 @@ class ScoutApp {
         <div style="font-size:11px; background:rgba(0,0,0,0.25); padding:4px 8px; border-radius:4px; color:#E0E0E0;">
           Parziali Set: <strong>${parzialiStr}</strong>
         </div>
-        <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px;">
+        <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px; flex-wrap:wrap;">
+          ${btnRiprendiHtml}
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#00ADB5;" onclick="app.apriReportInterattivoPerPartita(${p.id})" title="Visualizza Statistiche e Giocatori a Schermo">
             📊 Report
           </button>
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#FE5100;" onclick="app.generaReportPDFPerPartita(${p.id})" title="Scarica Report PDF della Partita">
             📄 PDF
-          </button>
-          <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#00ADB5;" onclick="app.caricaPartitaDaStorico(${p.id})" title="Ricarica Partita nello Scout">
-            📂 Carica
           </button>
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#C62828;" onclick="app.eliminaPartitaDaStorico(${p.id})" title="Elimina Partita dallo Storico">
             🗑️
@@ -2995,7 +3349,9 @@ class ScoutApp {
     this.formazione = nuovaFormazione;
     this.giocatoreAttivo = null;
 
+    this.centraliPartitaIds = this.formazione.filter(g => g && g.ruolo === 'C').map(g => g.id);
     this.salvaStato();
+    this.salvaRosterPermanente();
     this.render();
     this.renderRosterList();
     alert('Formazione iniziale applicata con successo!');
@@ -3160,6 +3516,69 @@ class ScoutApp {
     if (attVal) attVal.textContent = attKill + ' Pti / ' + attTot + ' Tot (' + attEff + '%)';
     if (murVal) murVal.textContent = murPti + ' Vincenti';
 
+    // RIEPILOGO SOMMA PUNTI DI SQUADRA
+    let tabelloneCasa = 0;
+    let tabelloneOspite = 0;
+    if (stSet && stSet.length > 0) {
+      stSet.forEach(s => {
+        tabelloneCasa += (s.puntiCasa || 0);
+        tabelloneOspite += (s.puntiOspite || 0);
+      });
+    }
+    if (!m && (this.puntiCasa > 0 || this.puntiOspite > 0) && !stSet.some(s => s.set === this.setCorrente)) {
+      tabelloneCasa += this.puntiCasa;
+      tabelloneOspite += this.puntiOspite;
+    }
+
+    const puntiAttiviCasa = batAces + attKill + murPti;
+    const puntiDaErroriAvv = Math.max(0, tabelloneCasa - puntiAttiviCasa);
+    const sommaTotalePuntiCasa = puntiAttiviCasa + puntiDaErroriAvv;
+    const nostriErroriTotali = batErr + attErr + ricErr;
+
+    const boxPuntiSquadra = document.getElementById('report-box-punti-squadra');
+    if (boxPuntiSquadra) {
+      const pctAce = sommaTotalePuntiCasa > 0 ? Math.round((batAces / sommaTotalePuntiCasa) * 100) : 0;
+      const pctAtt = sommaTotalePuntiCasa > 0 ? Math.round((attKill / sommaTotalePuntiCasa) * 100) : 0;
+      const pctMur = sommaTotalePuntiCasa > 0 ? Math.round((murPti / sommaTotalePuntiCasa) * 100) : 0;
+      const pctErrAvv = sommaTotalePuntiCasa > 0 ? Math.round((puntiDaErroriAvv / sommaTotalePuntiCasa) * 100) : 0;
+
+      boxPuntiSquadra.innerHTML = `
+        <div class="card-punti-squadra">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span style="font-size:11px; color:#00E5FF; font-weight:900; letter-spacing:0.5px; text-transform:uppercase;">📊 Origine & Somma Punti Squadra (${sqCasa})</span>
+              <div style="font-size:22px; font-weight:900; color:#FFFFFF; margin-top:2px;">
+                ${sommaTotalePuntiCasa} <span style="font-size:13px; font-weight:normal; opacity:0.85;">Punti Totali a Tabellone</span>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span style="font-size:11px; opacity:0.8;">Punti Concessi a ${sqOspite}:</span>
+              <div style="font-size:16px; font-weight:bold; color:#FFB74D;">${tabelloneOspite} pts <small style="font-size:11px; opacity:0.8;">(${nostriErroriTotali} nostri errori)</small></div>
+            </div>
+          </div>
+
+          <div class="punti-squadra-grid">
+            <div class="punto-origine-card" style="border-left-color:#F39C12;">
+              <div class="punto-origine-val">${batAces}</div>
+              <div class="punto-origine-label">🎯 Ace Battuta (${pctAce}%)</div>
+            </div>
+            <div class="punto-origine-card" style="border-left-color:#E65100;">
+              <div class="punto-origine-val">${attKill}</div>
+              <div class="punto-origine-label">💥 Attacchi Vincenti (${pctAtt}%)</div>
+            </div>
+            <div class="punto-origine-card" style="border-left-color:#00ADB5;">
+              <div class="punto-origine-val">${murPti}</div>
+              <div class="punto-origine-label">🛡️ Muri Punto (${pctMur}%)</div>
+            </div>
+            <div class="punto-origine-card" style="border-left-color:#27AE60;">
+              <div class="punto-origine-val">${puntiDaErroriAvv}</div>
+              <div class="punto-origine-label">⚠️ Errori Avversari (${pctErrAvv}%)</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     this.disegnaGraficoPunteggioLinee();
   }
 
@@ -3279,12 +3698,22 @@ class ScoutApp {
     ctx.fillText(this.squadraOspite, w - 50, 16);
   }
 
+  cambiaSottoVistaReport(vista) {
+    this.sottoVistaReport = vista;
+    const bSint = document.getElementById('btn-vista-stat-sintetica');
+    const bMatr = document.getElementById('btn-vista-stat-matrice');
+    const bColp = document.getElementById('btn-vista-stat-colpi');
+    if (bSint) bSint.classList.toggle('attivo', vista === 'sintetica');
+    if (bMatr) bMatr.classList.toggle('attivo', vista === 'matrice');
+    if (bColp) bColp.classList.toggle('attivo', vista === 'colpi');
+    this.renderReportGiocatori();
+  }
+
   renderReportGiocatori() {
     const filtriContainer = document.getElementById('filtri-set-container');
     const table = document.getElementById('table-statistiche-report');
     if (!table) return;
 
-    // Render bottoni filtri
     if (filtriContainer) {
       filtriContainer.innerHTML = '';
       const setList = ['tutti', 1, 2, 3, 4, 5];
@@ -3300,7 +3729,6 @@ class ScoutApp {
       });
     }
 
-    // Filtra eventi
     const m = this.reportMatchData;
     const allEvents = m ? (m.storicoEventi || []) : (this.storicoEventi || []);
     const playerList = m ? (m.tuttiGiocatori || this.tuttiGiocatori) : this.tuttiGiocatori;
@@ -3314,11 +3742,23 @@ class ScoutApp {
       statsMap[g.id] = {
         giocatore: g,
         totAzioni: 0,
-        batTot: 0, batAces: 0, batErr: 0,
-        ricTot: 0, ricPerf: 0, ricPos: 0, ricNeg: 0, ricErr: 0,
-        attTot: 0, attKill: 0, attMur: 0, attErr: 0,
-        murPti: 0,
-        totPunti: 0
+        totPunti: 0,
+        // Battuta
+        batTot: 0, batPP: 0, batP: 0, batSlash: 0, batM: 0, batMM: 0,
+        // Ricezione
+        ricTot: 0, ricPP: 0, ricP: 0, ricSlash: 0, ricM: 0, ricMM: 0,
+        // Attacco
+        attTot: 0, attPP: 0, attP: 0, attSlash: 0, attM: 0, attMM: 0,
+        // Muro
+        murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
+        // Difesa
+        difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
+        // Alzata
+        alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
+        // Tipologie Attacco
+        attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0, attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+        // Tipologie Alzata
+        alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
       };
     });
 
@@ -3327,54 +3767,232 @@ class ScoutApp {
       const st = statsMap[ev.giocatore.id];
       if (!st) return;
       st.totAzioni++;
+      const val = ev.valutazione;
+      const spec = (ev.speciale || '').toUpperCase();
 
       if (ev.fondamentale === 'battuta') {
         st.batTot++;
-        if (ev.valutazione === '++') { st.batAces++; st.totPunti++; }
-        else if (ev.valutazione === '==') { st.batErr++; }
+        if (val === '++') { st.batPP++; st.totPunti++; }
+        else if (val === '+') st.batP++;
+        else if (val === '!') st.batSlash++;
+        else if (val === '-') st.batM++;
+        else if (val === '==') st.batMM++;
       } else if (ev.fondamentale === 'ricezione') {
         st.ricTot++;
-        if (ev.valutazione === '++') st.ricPerf++;
-        else if (ev.valutazione === '+') st.ricPos++;
-        else if (ev.valutazione === '-') st.ricNeg++;
-        else if (ev.valutazione === '==') st.ricErr++;
+        if (val === '++') st.ricPP++;
+        else if (val === '+') st.ricP++;
+        else if (val === '!') st.ricSlash++;
+        else if (val === '-') st.ricM++;
+        else if (val === '==') st.ricMM++;
       } else if (ev.fondamentale === 'attacco') {
         st.attTot++;
-        if (ev.valutazione === '++') { st.attKill++; st.totPunti++; }
-        else if (ev.valutazione === '==') { st.attErr++; }
-        else if (ev.valutazione === '-' || ev.speciale === 'TOCCATO MURO') { st.attMur++; }
+        if (val === '++') { st.attPP++; st.totPunti++; }
+        else if (val === '+') st.attP++;
+        else if (val === '!') st.attSlash++;
+        else if (val === '-') st.attM++;
+        else if (val === '==') st.attMM++;
+
+        if (spec === 'PALLONETTO') st.attPallonetto++;
+        else if (spec === 'PIAZZATA') st.attPiazzata++;
+        else if (spec === 'FAST') st.attFast++;
+        else if (spec === 'PIPE') st.attPipe++;
+        else if (spec === 'SLASH') st.attSlashSub++;
+        else if (spec === 'MANI OUT') st.attManiOut++;
+        else if (spec === 'TOCCATO MURO') st.attToccatoMuro++;
+        else st.attStandard++;
       } else if (ev.fondamentale === 'muro') {
-        if (ev.valutazione === '++') { st.murPti++; st.totPunti++; }
+        st.murTot++;
+        if (val === '++') { st.murPP++; st.totPunti++; }
+        else if (val === '+') st.murP++;
+        else if (val === '!') st.murSlash++;
+        else if (val === '-') st.murM++;
+        else if (val === '==') st.murMM++;
+      } else if (ev.fondamentale === 'difesa') {
+        st.difTot++;
+        if (val === '++') st.difPP++;
+        else if (val === '+') st.difP++;
+        else if (val === '!') st.difSlash++;
+        else if (val === '-') st.difM++;
+        else if (val === '==') st.difMM++;
+      } else if (ev.fondamentale === 'alzata') {
+        st.alzTot++;
+        if (val === '++') st.alzPP++;
+        else if (val === '+') st.alzP++;
+        else if (val === '!') st.alzSlash++;
+        else if (val === '-') st.alzM++;
+        else if (val === '==') st.alzMM++;
+
+        if (spec === 'SUPER' || spec.includes('VELOCE')) st.alzSuper++;
+        else if (spec === 'TESA') st.alzTesa++;
+        else if (spec === 'MEZZA') st.alzMezza++;
+        else if (spec === 'ALTA') st.alzAlta++;
       }
     });
 
-    let html = '<thead><tr style="background:#03534E; color:#00E5FF;">' +
-      '<th>#</th><th style="text-align:left;">Atleta</th><th>Ruolo</th><th>Pti</th>' +
-      '<th>Bat (Tot/Ace/Err)</th>' +
-      '<th>Ric (Tot/++/+/Err/Eff%)</th>' +
-      '<th>Att (Tot/Pts/Err/Mur/Eff%)</th>' +
-      '<th>Mur Pti</th>' +
-      '</tr></thead><tbody>';
-
     const rows = Object.values(statsMap).sort((a, b) => b.totPunti - a.totPunti || a.giocatore.numero - b.giocatore.numero);
 
-    rows.forEach(st => {
-      const g = st.giocatore;
-      const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || ('Atleta #' + g.numero);
-      const attEff = st.attTot > 0 ? Math.round(((st.attKill - st.attErr - st.attMur) / st.attTot) * 100) : 0;
-      const ricEff = st.ricTot > 0 ? Math.round(((st.ricPerf + st.ricPos - st.ricErr) / st.ricTot) * 100) : 0;
+    // Totale squadra aggregato
+    const teamTot = {
+      totPunti: 0,
+      batTot: 0, batPP: 0, batP: 0, batSlash: 0, batM: 0, batMM: 0,
+      ricTot: 0, ricPP: 0, ricP: 0, ricSlash: 0, ricM: 0, ricMM: 0,
+      attTot: 0, attPP: 0, attP: 0, attSlash: 0, attM: 0, attMM: 0,
+      murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
+      difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
+      alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
+      attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0, attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+      alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
+    };
 
-      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">' +
-        '<td style="font-weight:900; color:#00E5FF;">#' + g.numero + '</td>' +
-        '<td style="text-align:left; font-weight:bold;">' + nom + '</td>' +
-        '<td><span style="background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:3px;">' + g.ruolo + '</span></td>' +
-        '<td style="font-weight:900; color:#2ECC71;">' + st.totPunti + '</td>' +
-        '<td>' + st.batTot + ' (' + st.batAces + '/' + st.batErr + ')</td>' +
-        '<td>' + st.ricTot + ' (' + st.ricPerf + '/' + st.ricPos + '/' + st.ricErr + ' | ' + ricEff + '%)</td>' +
-        '<td>' + st.attTot + ' (' + st.attKill + '/' + st.attErr + '/' + st.attMur + ' | ' + attEff + '%)</td>' +
-        '<td style="font-weight:bold;">' + st.murPti + '</td>' +
-        '</tr>';
+    rows.forEach(r => {
+      for (const k in teamTot) {
+        teamTot[k] += (r[k] || 0);
+      }
     });
+
+    let html = '';
+
+    if (this.sottoVistaReport === 'matrice') {
+      // 1. VISTA MATRICE FONDAMENTALI COMPLETA (b#, b+, b!, b-, b= per ogni fondamentale)
+      html += '<thead><tr style="background:#03534E; color:#00E5FF; font-size:11px;">' +
+        '<th>#</th><th style="text-align:left;">Atleta</th><th>Ruolo</th><th style="color:#2ECC71;">Pti</th>' +
+        '<th class="table-matrice-header-fond" style="background:#B7950B; color:white;">BATTUTA<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '<th class="table-matrice-header-fond" style="background:#6C3483; color:white;">RICEZIONE<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '<th class="table-matrice-header-fond" style="background:#BA4A00; color:white;">ATTACCO<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '<th class="table-matrice-header-fond" style="background:#117A65; color:white;">MURO<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '<th class="table-matrice-header-fond" style="background:#1E8449; color:white;">DIFESA<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '<th class="table-matrice-header-fond" style="background:#922B21; color:white;">ALZATA<br><small>Tot | # | + | ! | - | =</small></th>' +
+        '</tr></thead><tbody>';
+
+      rows.forEach(st => {
+        const g = st.giocatore;
+        const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || ('Atleta #' + g.numero);
+        html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">' +
+          '<td style="font-weight:900; color:#00E5FF;">#' + g.numero + '</td>' +
+          '<td style="text-align:left; font-weight:bold; white-space:nowrap;">' + nom + '</td>' +
+          '<td><span style="background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:3px;">' + g.ruolo + '</span></td>' +
+          '<td style="font-weight:900; color:#2ECC71;">' + st.totPunti + '</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.batTot + '</strong> (' + st.batPP + ' / ' + st.batP + ' / ' + st.batSlash + ' / ' + st.batM + ' / ' + st.batMM + ')</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.ricTot + '</strong> (' + st.ricPP + ' / ' + st.ricP + ' / ' + st.ricSlash + ' / ' + st.ricM + ' / ' + st.ricMM + ')</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.attTot + '</strong> (' + st.attPP + ' / ' + st.attP + ' / ' + st.attSlash + ' / ' + st.attM + ' / ' + st.attMM + ')</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.murTot + '</strong> (' + st.murPP + ' / ' + st.murP + ' / ' + st.murSlash + ' / ' + st.murM + ' / ' + st.murMM + ')</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.difTot + '</strong> (' + st.difPP + ' / ' + st.difP + ' / ' + st.difSlash + ' / ' + st.difM + ' / ' + st.difMM + ')</td>' +
+          '<td style="white-space:nowrap;"><strong>' + st.alzTot + '</strong> (' + st.alzPP + ' / ' + st.alzP + ' / ' + st.alzSlash + ' / ' + st.alzM + ' / ' + st.alzMM + ')</td>' +
+          '</tr>';
+      });
+
+      // RIGA TOTALE SQUADRA
+      html += '<tr class="riga-totale-squadra">' +
+        '<td>TOT</td>' +
+        '<td style="text-align:left;">TOTALE SQUADRA</td>' +
+        '<td>-</td>' +
+        '<td>' + teamTot.totPunti + '</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.batTot + ' (' + teamTot.batPP + '/' + teamTot.batP + '/' + teamTot.batSlash + '/' + teamTot.batM + '/' + teamTot.batMM + ')</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.ricTot + ' (' + teamTot.ricPP + '/' + teamTot.ricP + '/' + teamTot.ricSlash + '/' + teamTot.ricM + '/' + teamTot.ricMM + ')</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.attTot + ' (' + teamTot.attPP + '/' + teamTot.attP + '/' + teamTot.attSlash + '/' + teamTot.attM + '/' + teamTot.attMM + ')</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.murTot + ' (' + teamTot.murPP + '/' + teamTot.murP + '/' + teamTot.murSlash + '/' + teamTot.murM + '/' + teamTot.murMM + ')</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.difTot + ' (' + teamTot.difPP + '/' + teamTot.difP + '/' + teamTot.difSlash + '/' + teamTot.difM + '/' + teamTot.difMM + ')</td>' +
+        '<td style="white-space:nowrap;">' + teamTot.alzTot + ' (' + teamTot.alzPP + '/' + teamTot.alzP + '/' + teamTot.alzSlash + '/' + teamTot.alzM + '/' + teamTot.alzMM + ')</td>' +
+        '</tr>';
+
+    } else if (this.sottoVistaReport === 'colpi') {
+      // 2. VISTA DETTAGLIO COLPI & ALZATE (Pallonetto, Fast, Pipe, Mani Out, ecc.)
+      html += '<thead><tr style="background:#03534E; color:#00E5FF; font-size:11px;">' +
+        '<th>#</th><th style="text-align:left;">Atleta</th><th>Ruolo</th>' +
+        '<th style="background:#BA4A00; color:white;">Att Tot</th>' +
+        '<th>Pallonetto</th><th>Piazzata</th><th>Fast</th><th>Pipe</th><th>Slash</th><th>Mani Out</th><th>Toccato Muro</th><th>Standard</th>' +
+        '<th style="background:#922B21; color:white;">Alz Tot</th>' +
+        '<th>Super</th><th>Tesa</th><th>Mezza</th><th>Alta</th>' +
+        '</tr></thead><tbody>';
+
+      rows.forEach(st => {
+        const g = st.giocatore;
+        const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || ('Atleta #' + g.numero);
+        html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">' +
+          '<td style="font-weight:900; color:#00E5FF;">#' + g.numero + '</td>' +
+          '<td style="text-align:left; font-weight:bold; white-space:nowrap;">' + nom + '</td>' +
+          '<td><span style="background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:3px;">' + g.ruolo + '</span></td>' +
+          '<td style="font-weight:bold; color:#FFB74D;">' + st.attTot + '</td>' +
+          '<td>' + (st.attPallonetto || '-') + '</td>' +
+          '<td>' + (st.attPiazzata || '-') + '</td>' +
+          '<td>' + (st.attFast || '-') + '</td>' +
+          '<td>' + (st.attPipe || '-') + '</td>' +
+          '<td>' + (st.attSlashSub || '-') + '</td>' +
+          '<td>' + (st.attManiOut || '-') + '</td>' +
+          '<td>' + (st.attToccatoMuro || '-') + '</td>' +
+          '<td>' + (st.attStandard || '-') + '</td>' +
+          '<td style="font-weight:bold; color:#00E5FF;">' + st.alzTot + '</td>' +
+          '<td>' + (st.alzSuper || '-') + '</td>' +
+          '<td>' + (st.alzTesa || '-') + '</td>' +
+          '<td>' + (st.alzMezza || '-') + '</td>' +
+          '<td>' + (st.alzAlta || '-') + '</td>' +
+          '</tr>';
+      });
+
+      // RIGA TOTALE SQUADRA
+      html += '<tr class="riga-totale-squadra">' +
+        '<td>TOT</td>' +
+        '<td style="text-align:left;">TOTALE SQUADRA</td>' +
+        '<td>-</td>' +
+        '<td>' + teamTot.attTot + '</td>' +
+        '<td>' + teamTot.attPallonetto + '</td>' +
+        '<td>' + teamTot.attPiazzata + '</td>' +
+        '<td>' + teamTot.attFast + '</td>' +
+        '<td>' + teamTot.attPipe + '</td>' +
+        '<td>' + teamTot.attSlashSub + '</td>' +
+        '<td>' + teamTot.attManiOut + '</td>' +
+        '<td>' + teamTot.attToccatoMuro + '</td>' +
+        '<td>' + teamTot.attStandard + '</td>' +
+        '<td>' + teamTot.alzTot + '</td>' +
+        '<td>' + teamTot.alzSuper + '</td>' +
+        '<td>' + teamTot.alzTesa + '</td>' +
+        '<td>' + teamTot.alzMezza + '</td>' +
+        '<td>' + teamTot.alzAlta + '</td>' +
+        '</tr>';
+
+    } else {
+      // 3. VISTA SINTETICA CLASSICA
+      html += '<thead><tr style="background:#03534E; color:#00E5FF;">' +
+        '<th>#</th><th style="text-align:left;">Atleta</th><th>Ruolo</th><th>Pti</th>' +
+        '<th>Bat (Tot/Ace/Err)</th>' +
+        '<th>Ric (Tot/++/+/Err/Eff%)</th>' +
+        '<th>Att (Tot/Pts/Err/Mur/Eff%)</th>' +
+        '<th>Mur Pti</th>' +
+        '</tr></thead><tbody>';
+
+      rows.forEach(st => {
+        const g = st.giocatore;
+        const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || ('Atleta #' + g.numero);
+        const attEff = st.attTot > 0 ? Math.round(((st.attPP - st.attMM - st.attM) / st.attTot) * 100) : 0;
+        const ricEff = st.ricTot > 0 ? Math.round(((st.ricPP + st.ricP - st.ricMM) / st.ricTot) * 100) : 0;
+
+        html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">' +
+          '<td style="font-weight:900; color:#00E5FF;">#' + g.numero + '</td>' +
+          '<td style="text-align:left; font-weight:bold;">' + nom + '</td>' +
+          '<td><span style="background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:3px;">' + g.ruolo + '</span></td>' +
+          '<td style="font-weight:900; color:#2ECC71;">' + st.totPunti + '</td>' +
+          '<td>' + st.batTot + ' (' + st.batPP + '/' + st.batMM + ')</td>' +
+          '<td>' + st.ricTot + ' (' + st.ricPP + '/' + st.ricP + '/' + st.ricMM + ' | ' + ricEff + '%)</td>' +
+          '<td>' + st.attTot + ' (' + st.attPP + '/' + st.attMM + '/' + st.attM + ' | ' + attEff + '%)</td>' +
+          '<td style="font-weight:bold;">' + st.murPP + '</td>' +
+          '</tr>';
+      });
+
+      const teamAttEff = teamTot.attTot > 0 ? Math.round(((teamTot.attPP - teamTot.attMM - teamTot.attM) / teamTot.attTot) * 100) : 0;
+      const teamRicEff = teamTot.ricTot > 0 ? Math.round(((teamTot.ricPP + teamTot.ricP - teamTot.ricMM) / teamTot.ricTot) * 100) : 0;
+
+      // RIGA TOTALE SQUADRA
+      html += '<tr class="riga-totale-squadra">' +
+        '<td>TOT</td>' +
+        '<td style="text-align:left;">TOTALE SQUADRA</td>' +
+        '<td>-</td>' +
+        '<td>' + teamTot.totPunti + '</td>' +
+        '<td>' + teamTot.batTot + ' (' + teamTot.batPP + '/' + teamTot.batMM + ')</td>' +
+        '<td>' + teamTot.ricTot + ' (' + teamTot.ricPP + '/' + teamTot.ricP + '/' + teamTot.ricMM + ' | ' + teamRicEff + '%)</td>' +
+        '<td>' + teamTot.attTot + ' (' + teamTot.attPP + '/' + teamTot.attMM + '/' + teamTot.attM + ' | ' + teamAttEff + '%)</td>' +
+        '<td>' + teamTot.murPP + '</td>' +
+        '</tr>';
+    }
 
     html += '</tbody>';
     table.innerHTML = html;
