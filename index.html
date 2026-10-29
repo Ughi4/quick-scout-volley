@@ -207,11 +207,17 @@
 
         <!-- TASTI SPECIALI SOTTO-AZIONI CONTESTUALI (Alzata, Attacco, ecc.) -->
         <div id="riga-speciali-attacco" class="riga-speciali-attacco">
-          <button class="btn-speciale btn-speciale-maniout" onclick="app.registraAttaccoManiOut()" title="Attacco tocca il muro ed esce: PUNTO NOSTRO!">
-            <span>🖐️ OUT</span> Mani Out
+          <button class="btn-speciale btn-speciale-manioutnostro" onclick="app.registraAttaccoManiOut()" title="Attacco tocca il muro ed esce: PUNTO NOSTRO!">
+            <span>🖐️ +1</span> Mani Out Nostro
           </button>
-          <button class="btn-speciale btn-speciale-toccato" onclick="app.registraAttaccoToccatoMuro()" title="Attacco tocca il muro e gli avversari rigiocano: PALLA VIVA!">
-            <span>🖐️ 🔄</span> Toccato Muro
+          <button class="btn-speciale btn-speciale-murataloro" onclick="app.registraAttaccoMurataRigiocanoLoro()" title="Attacco tocca il muro e gli avversari difendono/rigiocano: PALLA VIVA LORO!">
+            <span>🖐️ 🔄</span> Murata Loro
+          </button>
+          <button class="btn-speciale btn-speciale-muratanoi" onclick="app.registraAttaccoMurataRigiochiamoNoi()" title="Attacco tocca il muro ma la nostra copertura lo salva: RIGIOCHIAMO NOI!">
+            <span>🛡️ 🔄</span> Murata Noi
+          </button>
+          <button class="btn-speciale btn-speciale-manioutsubito" onclick="app.registraAttaccoManiOutSubito()" title="Attacco murato fuori/a terra: PUNTO AVVERSARIO!">
+            <span>❌ +1</span> Mani Out Subito
           </button>
           <button class="btn-speciale" onclick="app.impostaSubAzione('PALLONETTO')" title="Pallonetto">
             <span>🪶</span> Pallonetto
@@ -327,25 +333,41 @@
         </div>
       </div>
 
-      <!-- Card Laterale Destra per i 2 Tasti Speciali Attacco (NON copre la ruota!) -->
+      <!-- Card Laterale Destra per i Tasti Speciali Attacco (NON copre la ruota!) -->
       <div class="ruota-speciali-card">
         <div class="speciali-card-header">
-          <span>💥</span> AZIONI ATTACCO SPECIALI
+          <span>💥</span> ATTACCO & MURO
         </div>
 
-        <button class="btn-speciale-card btn-maniout" onclick="app.registraAttaccoManiOut(); app.chiudiRuota();" title="Attacco tocca il muro ed esce: Punto Nostro!">
-          <span class="icon">🖐️ OUT</span>
+        <button class="btn-speciale-card btn-maniout-nostro" onclick="app.registraAttaccoManiOut(); app.chiudiRuota();" title="Attacco tocca il muro ed esce: Punto Nostro!">
+          <span class="icon">🖐️ +1</span>
           <div class="text-col">
-            <span class="title">Mani Out (+1 pt)</span>
+            <span class="title">Mani Out Nostro (+1 pt)</span>
             <span class="sub">Punto nostro e rotazione</span>
           </div>
         </button>
 
-        <button class="btn-speciale-card btn-toccato" onclick="app.registraAttaccoToccatoMuro(); app.chiudiRuota();" title="Attacco tocca il muro e gli avversari rigiocano: Azione continua!">
+        <button class="btn-speciale-card btn-murata-loro" onclick="app.registraAttaccoMurataRigiocanoLoro(); app.chiudiRuota();" title="Attacco tocca il muro e gli avversari difendono: Difendono loro!">
           <span class="icon">🖐️ 🔄</span>
           <div class="text-col">
-            <span class="title">Toccato Muro</span>
+            <span class="title">Murata Loro (Difendono)</span>
             <span class="sub">Palla viva, rally continua</span>
+          </div>
+        </button>
+
+        <button class="btn-speciale-card btn-murata-noi" onclick="app.registraAttaccoMurataRigiochiamoNoi(); app.chiudiRuota();" title="Attacco tocca il muro ma lo copriamo noi: Rigiochiamo noi!">
+          <span class="icon">🛡️ 🔄</span>
+          <div class="text-col">
+            <span class="title">Murata Noi (Rigiochiamo)</span>
+            <span class="sub">Copertura nostra, palla viva</span>
+          </div>
+        </button>
+
+        <button class="btn-speciale-card btn-maniout-subito" onclick="app.registraAttaccoManiOutSubito(); app.chiudiRuota();" title="Attacco murato fuori o a terra: Punto Avversario!">
+          <span class="icon">❌ +1</span>
+          <div class="text-col">
+            <span class="title">Mani Out Subito (+1 Avv)</span>
+            <span class="sub">Punto avversario, ricezione</span>
           </div>
         </button>
       </div>

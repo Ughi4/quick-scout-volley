@@ -752,6 +752,9 @@ class ScoutApp {
       this.haPallaCasa = true;
       const [p1, p2, p3, p4, p5, p6] = this.formazione;
       this.formazione = [p2, p3, p4, p5, p6, p1];
+      if (this.autoLiberoRotazione && this.formazione[3]?.ruolo === 'L') {
+        this.faiRientrareCentralePerLibero(3);
+      }
     }
 
     const evento = {
@@ -763,7 +766,7 @@ class ScoutApp {
       giocatore: g,
       fondamentale: 'attacco',
       valutazione: '++',
-      speciale: 'MANI OUT',
+      speciale: 'MANI OUT NOSTRO',
       traiettoria: { ...this.traiettoria },
       puntiCasa: this.puntiCasa,
       puntiOspite: this.puntiOspite,
@@ -774,6 +777,7 @@ class ScoutApp {
     this.storicoEventi.push(evento);
     this.fondamentaleSelezionato = 'battuta';
     this.giocatoreAttivo = null;
+    this.subAzioneSelezionata = null;
     this.numeroScambio = 0;
     this.cancellaTraiettoria();
     this.verificaFineSet();
@@ -781,7 +785,7 @@ class ScoutApp {
     this.render();
   }
 
-  registraAttaccoToccatoMuro() {
+  registraAttaccoMurataRigiocanoLoro() {
     const g = this.giocatoreAttivo || this.formazione[3] || this.tuttiGiocatori[0];
     const snap = this.catturaSnapshotPrecedente();
 
@@ -794,7 +798,7 @@ class ScoutApp {
       giocatore: g,
       fondamentale: 'attacco',
       valutazione: '!',
-      speciale: 'TOCCATO MURO',
+      speciale: 'MURATA RIGIOCANO LORO',
       traiettoria: { ...this.traiettoria },
       puntiCasa: this.puntiCasa,
       puntiOspite: this.puntiOspite,
@@ -803,9 +807,83 @@ class ScoutApp {
     };
 
     this.storicoEventi.push(evento);
-    this.fondamentaleSelezionato = 'muro';
+    this.fondamentaleSelezionato = 'difesa'; // Avversari contrattaccano, noi andiamo in difesa/muro
     this.giocatoreAttivo = null;
+    this.subAzioneSelezionata = null;
     this.cancellaTraiettoria();
+    this.salvaStato();
+    this.render();
+  }
+
+  // Alias retrocompatibile
+  registraAttaccoToccatoMuro() {
+    this.registraAttaccoMurataRigiocanoLoro();
+  }
+
+  registraAttaccoMurataRigiochiamoNoi() {
+    const g = this.giocatoreAttivo || this.formazione[3] || this.tuttiGiocatori[0];
+    const snap = this.catturaSnapshotPrecedente();
+
+    const evento = {
+      id: Date.now(),
+      tipo: 'valutazione',
+      set: this.setCorrente,
+      punto: this.numeroPunto,
+      scambio: this.numeroScambio++,
+      giocatore: g,
+      fondamentale: 'attacco',
+      valutazione: '+',
+      speciale: 'MURATA RIGIOCHIAMO NOI',
+      traiettoria: { ...this.traiettoria },
+      puntiCasa: this.puntiCasa,
+      puntiOspite: this.puntiOspite,
+      snapshotPrecedente: snap,
+      orario: new Date().toLocaleTimeString('it-IT')
+    };
+
+    this.storicoEventi.push(evento);
+    this.fondamentaleSelezionato = 'alzata'; // Palla coperta nel nostro campo, ricostruiamo con alzata!
+    this.giocatoreAttivo = null;
+    this.subAzioneSelezionata = null;
+    this.cancellaTraiettoria();
+    this.salvaStato();
+    this.render();
+  }
+
+  registraAttaccoManiOutSubito() {
+    const g = this.giocatoreAttivo || this.formazione[3] || this.tuttiGiocatori[0];
+    const snap = this.catturaSnapshotPrecedente();
+    this.puntiOspite++;
+    this.haPallaCasa = false;
+
+    if (this.autoLiberoEntrata) {
+      this.verificaEntrataAutomaticaLibero();
+    }
+
+    const evento = {
+      id: Date.now(),
+      tipo: 'valutazione',
+      set: this.setCorrente,
+      punto: this.numeroPunto++,
+      scambio: this.numeroScambio++,
+      giocatore: g,
+      fondamentale: 'attacco',
+      valutazione: '==',
+      speciale: 'MANI OUT SUBITO',
+      traiettoria: { ...this.traiettoria },
+      puntiCasa: this.puntiCasa,
+      puntiOspite: this.puntiOspite,
+      snapshotPrecedente: snap,
+      orario: new Date().toLocaleTimeString('it-IT')
+    };
+
+    this.storicoEventi.push(evento);
+    this.fondamentaleSelezionato = 'ricezione'; // Punto avversario, batteranno loro quindi noi andiamo in ricezione
+    this.giocatoreAttivo = null;
+    this.subAzioneSelezionata = null;
+    this.numeroScambio = 0;
+    this.cancellaTraiettoria();
+    this.verificaFineSet();
     this.salvaStato();
     this.render();
   }
@@ -2246,7 +2324,8 @@ class ScoutApp {
       rowY += 10;
 
       // BOX DETTAGLIO COLPI & TIPOLOGIE ATTACCO SUL REFERTO PDF
-      let pallonetti = 0, piazzate = 0, fast = 0, pipe = 0, maniOut = 0, toccatiMuro = 0;
+      let pallonetti = 0, piazzate = 0, fast = 0, pipe = 0, slash = 0;
+      let maniOutNostro = 0, murataLoro = 0, murataNoi = 0, maniOutSubito = 0;
       let superAlz = 0, tesaAlz = 0, mezzaAlz = 0, altaAlz = 0;
       (storicoEventi || []).forEach(ev => {
         const sp = (ev.speciale || '').toUpperCase();
@@ -2255,8 +2334,11 @@ class ScoutApp {
           else if (sp === 'PIAZZATA') piazzate++;
           else if (sp === 'FAST') fast++;
           else if (sp === 'PIPE') pipe++;
-          else if (sp === 'MANI OUT') maniOut++;
-          else if (sp === 'TOCCATO MURO') toccatiMuro++;
+          else if (sp === 'SLASH') slash++;
+          else if (sp === 'MANI OUT NOSTRO' || sp === 'MANI OUT') maniOutNostro++;
+          else if (sp === 'MURATA RIGIOCANO LORO' || sp === 'TOCCATO MURO') murataLoro++;
+          else if (sp === 'MURATA RIGIOCHIAMO NOI') murataNoi++;
+          else if (sp === 'MANI OUT SUBITO') maniOutSubito++;
         } else if (ev.fondamentale === 'alzata') {
           if (sp === 'SUPER' || sp.includes('VELOCE')) superAlz++;
           else if (sp === 'TESA') tesaAlz++;
@@ -2266,21 +2348,22 @@ class ScoutApp {
       });
 
       doc.setFillColor(245, 245, 245);
-      doc.roundedRect(15, rowY, 180, 16, 1.5, 1.5, 'F');
+      doc.roundedRect(15, rowY, 180, 20, 1.5, 1.5, 'F');
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(254, 81, 0);
-      doc.text("Dettaglio Tipologia Attacchi:", 18, rowY + 5);
+      doc.text("Dettaglio Tipologia Attacchi:", 18, rowY + 4.5);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(40, 40, 40);
-      doc.text(`Pallonetto: ${pallonetti}  •  Piazzata: ${piazzate}  •  Fast: ${fast}  •  Pipe: ${pipe}  •  Mani Out: ${maniOut}  •  Toccato Muro: ${toccatiMuro}`, 18, rowY + 9);
+      doc.text(`Mani Out Nostro: ${maniOutNostro}  •  Murata Loro: ${murataLoro}  •  Murata Noi: ${murataNoi}  •  Mani Out Subito: ${maniOutSubito}`, 18, rowY + 8.5);
+      doc.text(`Pallonetto: ${pallonetti}  •  Piazzata: ${piazzate}  •  Fast: ${fast}  •  Pipe: ${pipe}  •  Slash: ${slash}`, 18, rowY + 12.5);
 
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 119, 107);
-      doc.text("Dettaglio Tipologia Alzate:", 18, rowY + 13);
+      doc.text("Dettaglio Alzate:", 18, rowY + 16.5);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(40, 40, 40);
-      doc.text(`Super/Veloce: ${superAlz}  •  Tesa: ${tesaAlz}  •  Mezza: ${mezzaAlz}  •  Alta: ${altaAlz}`, 58, rowY + 13);
+      doc.text(`Super/Veloce: ${superAlz}  •  Tesa: ${tesaAlz}  •  Mezza: ${mezzaAlz}  •  Alta: ${altaAlz}`, 45, rowY + 16.5);
 
       // FOOTER PAGINA 2: Separatore rosso, pag. 2-2 e data corrente
       doc.setDrawColor(254, 81, 0); // #fe5100
@@ -2516,7 +2599,20 @@ class ScoutApp {
       const fCol = fondBadgeColors[ev.fondamentale || ev.tipo] || '#555';
       const valBadge = valBadges[ev.valutazione] || (ev.valutazione ? ('<span style="font-weight:bold;">' + ev.valutazione + '</span>') : '-');
       const scoreStr = (ev.puntiCasa !== undefined && ev.puntiOspite !== undefined) ? (ev.puntiCasa + ' - ' + ev.puntiOspite) : '-';
-      const specStr = ev.speciale ? ('<span style="color:#00E5FF; font-weight:bold;">' + ev.speciale + '</span>') : (ev.dettagli ? JSON.stringify(ev.dettagli) : '-');
+      let specStr = '-';
+      if (ev.speciale === 'MANI OUT NOSTRO' || ev.speciale === 'MANI OUT') {
+        specStr = '<span style="background:#27AE60; color:white; padding:2px 7px; border-radius:3px; font-weight:bold;">🖐️ MANI OUT NOSTRO (+1)</span>';
+      } else if (ev.speciale === 'MURATA RIGIOCANO LORO' || ev.speciale === 'TOCCATO MURO') {
+        specStr = '<span style="background:#D35400; color:white; padding:2px 7px; border-radius:3px; font-weight:bold;">🖐️ 🔄 MURATA LORO</span>';
+      } else if (ev.speciale === 'MURATA RIGIOCHIAMO NOI') {
+        specStr = '<span style="background:#2980B9; color:white; padding:2px 7px; border-radius:3px; font-weight:bold;">🛡️ 🔄 MURATA NOI</span>';
+      } else if (ev.speciale === 'MANI OUT SUBITO') {
+        specStr = '<span style="background:#C0392B; color:white; padding:2px 7px; border-radius:3px; font-weight:bold;">❌ MANI OUT SUBITO (+1 AVV)</span>';
+      } else if (ev.speciale) {
+        specStr = '<span style="color:#00E5FF; font-weight:bold;">' + ev.speciale + '</span>';
+      } else if (ev.dettagli) {
+        specStr = JSON.stringify(ev.dettagli);
+      }
       const fondLabel = (ev.fondamentale || ev.tipo || '').toUpperCase();
 
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">' +
@@ -3756,7 +3852,9 @@ class ScoutApp {
         // Alzata
         alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
         // Tipologie Attacco
-        attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0, attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+        attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0,
+        attManiOutNostro: 0, attMurataLoro: 0, attMurataNoi: 0, attManiOutSubito: 0,
+        attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
         // Tipologie Alzata
         alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
       };
@@ -3797,8 +3895,10 @@ class ScoutApp {
         else if (spec === 'FAST') st.attFast++;
         else if (spec === 'PIPE') st.attPipe++;
         else if (spec === 'SLASH') st.attSlashSub++;
-        else if (spec === 'MANI OUT') st.attManiOut++;
-        else if (spec === 'TOCCATO MURO') st.attToccatoMuro++;
+        else if (spec === 'MANI OUT NOSTRO' || spec === 'MANI OUT') { st.attManiOutNostro++; st.attManiOut++; }
+        else if (spec === 'MURATA RIGIOCANO LORO' || spec === 'TOCCATO MURO') { st.attMurataLoro++; st.attToccatoMuro++; }
+        else if (spec === 'MURATA RIGIOCHIAMO NOI') st.attMurataNoi++;
+        else if (spec === 'MANI OUT SUBITO') st.attManiOutSubito++;
         else st.attStandard++;
       } else if (ev.fondamentale === 'muro') {
         st.murTot++;
@@ -3840,7 +3940,9 @@ class ScoutApp {
       murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
       difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
       alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
-      attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0, attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+      attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0,
+      attManiOutNostro: 0, attMurataLoro: 0, attMurataNoi: 0, attManiOutSubito: 0,
+      attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
       alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
     };
 
@@ -3896,11 +3998,15 @@ class ScoutApp {
         '</tr>';
 
     } else if (this.sottoVistaReport === 'colpi') {
-      // 2. VISTA DETTAGLIO COLPI & ALZATE (Pallonetto, Fast, Pipe, Mani Out, ecc.)
+      // 2. VISTA DETTAGLIO COLPI & ALZATE (Mani Out, Murata, Pallonetto, Fast, Pipe, ecc.)
       html += '<thead><tr style="background:#03534E; color:#00E5FF; font-size:11px;">' +
         '<th>#</th><th style="text-align:left;">Atleta</th><th>Ruolo</th>' +
         '<th style="background:#BA4A00; color:white;">Att Tot</th>' +
-        '<th>Pallonetto</th><th>Piazzata</th><th>Fast</th><th>Pipe</th><th>Slash</th><th>Mani Out</th><th>Toccato Muro</th><th>Standard</th>' +
+        '<th style="background:#27AE60; color:white;" title="Mani Out Nostro (+1 pt)">Mani Out Nostro</th>' +
+        '<th style="background:#D35400; color:white;" title="Murata Rigiocano Loro (Palla Viva)">Murata Loro</th>' +
+        '<th style="background:#2980B9; color:white;" title="Murata Rigiochiamo Noi (Copertura Nostra)">Murata Noi</th>' +
+        '<th style="background:#C0392B; color:white;" title="Mani Out Subito (+1 Avv)">Mani Out Subito</th>' +
+        '<th>Pallonetto</th><th>Piazzata</th><th>Fast</th><th>Pipe</th><th>Slash</th><th>Standard</th>' +
         '<th style="background:#922B21; color:white;">Alz Tot</th>' +
         '<th>Super</th><th>Tesa</th><th>Mezza</th><th>Alta</th>' +
         '</tr></thead><tbody>';
@@ -3913,13 +4019,15 @@ class ScoutApp {
           '<td style="text-align:left; font-weight:bold; white-space:nowrap;">' + nom + '</td>' +
           '<td><span style="background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:3px;">' + g.ruolo + '</span></td>' +
           '<td style="font-weight:bold; color:#FFB74D;">' + st.attTot + '</td>' +
+          '<td style="font-weight:900; color:#2ECC71;">' + (st.attManiOutNostro || '-') + '</td>' +
+          '<td style="font-weight:bold; color:#F39C12;">' + (st.attMurataLoro || '-') + '</td>' +
+          '<td style="font-weight:bold; color:#00E5FF;">' + (st.attMurataNoi || '-') + '</td>' +
+          '<td style="font-weight:bold; color:#E74C3C;">' + (st.attManiOutSubito || '-') + '</td>' +
           '<td>' + (st.attPallonetto || '-') + '</td>' +
           '<td>' + (st.attPiazzata || '-') + '</td>' +
           '<td>' + (st.attFast || '-') + '</td>' +
           '<td>' + (st.attPipe || '-') + '</td>' +
           '<td>' + (st.attSlashSub || '-') + '</td>' +
-          '<td>' + (st.attManiOut || '-') + '</td>' +
-          '<td>' + (st.attToccatoMuro || '-') + '</td>' +
           '<td>' + (st.attStandard || '-') + '</td>' +
           '<td style="font-weight:bold; color:#00E5FF;">' + st.alzTot + '</td>' +
           '<td>' + (st.alzSuper || '-') + '</td>' +
@@ -3935,13 +4043,15 @@ class ScoutApp {
         '<td style="text-align:left;">TOTALE SQUADRA</td>' +
         '<td>-</td>' +
         '<td>' + teamTot.attTot + '</td>' +
+        '<td style="font-weight:900; color:#2ECC71;">' + teamTot.attManiOutNostro + '</td>' +
+        '<td style="font-weight:bold; color:#F39C12;">' + teamTot.attMurataLoro + '</td>' +
+        '<td style="font-weight:bold; color:#00E5FF;">' + teamTot.attMurataNoi + '</td>' +
+        '<td style="font-weight:bold; color:#E74C3C;">' + teamTot.attManiOutSubito + '</td>' +
         '<td>' + teamTot.attPallonetto + '</td>' +
         '<td>' + teamTot.attPiazzata + '</td>' +
         '<td>' + teamTot.attFast + '</td>' +
         '<td>' + teamTot.attPipe + '</td>' +
         '<td>' + teamTot.attSlashSub + '</td>' +
-        '<td>' + teamTot.attManiOut + '</td>' +
-        '<td>' + teamTot.attToccatoMuro + '</td>' +
         '<td>' + teamTot.attStandard + '</td>' +
         '<td>' + teamTot.alzTot + '</td>' +
         '<td>' + teamTot.alzSuper + '</td>' +

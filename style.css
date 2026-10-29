@@ -772,8 +772,10 @@ html, body {
   transform: scale(0.96);
 }
 
-.btn-speciale-maniout { background-color: #E91E63; }
-.btn-speciale-toccato { background-color: #26A69A; }
+.btn-speciale-maniout, .btn-speciale-manioutnostro { background-color: #27AE60; }
+.btn-speciale-toccato, .btn-speciale-murataloro { background-color: #D35400; }
+.btn-speciale-muratanoi { background-color: #2980B9; }
+.btn-speciale-manioutsubito { background-color: #C0392B; }
 .btn-speciale.sub-attiva {
   background-color: #FE5100 !important;
   color: #FFFFFF !important;
@@ -1043,21 +1045,21 @@ html, body {
   opacity: 0.85;
 }
 
-/* Card laterale per i 2 tasti speciali di attacco (Mani Out e Toccato Muro) */
+/* Card laterale per i tasti speciali di attacco (Mani Out, Murata Loro, Murata Noi, Mani Out Subito) */
 .ruota-speciali-card {
   position: absolute;
   right: 16px;
   top: 50%;
   transform: translateY(-50%);
-  background-color: rgba(12, 90, 84, 0.95);
+  background-color: rgba(12, 90, 84, 0.96);
   border: 2px solid #00E5FF;
   border-radius: 14px;
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  width: 190px;
+  width: 215px;
   z-index: 15;
   backdrop-filter: blur(8px);
   pointer-events: none;
@@ -1088,11 +1090,11 @@ html, body {
   border: none;
   border-radius: 8px;
   color: white;
-  padding: 8px 12px;
+  padding: 7px 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-align: left;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   transition: transform 0.1s;
@@ -1103,7 +1105,7 @@ html, body {
 }
 
 .btn-speciale-card .icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .btn-speciale-card .text-col {
@@ -1112,21 +1114,33 @@ html, body {
 }
 
 .btn-speciale-card .title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .btn-speciale-card .sub {
-  font-size: 9px;
+  font-size: 8.5px;
   opacity: 0.85;
+  white-space: nowrap;
 }
 
-.btn-speciale-card.btn-maniout {
-  background-color: #E91E63;
+.btn-speciale-card.btn-maniout,
+.btn-speciale-card.btn-maniout-nostro {
+  background-color: #27AE60;
 }
 
-.btn-speciale-card.btn-toccato {
-  background-color: #26A69A;
+.btn-speciale-card.btn-toccato,
+.btn-speciale-card.btn-murata-loro {
+  background-color: #D35400;
+}
+
+.btn-speciale-card.btn-murata-noi {
+  background-color: #2980B9;
+}
+
+.btn-speciale-card.btn-maniout-subito {
+  background-color: #C0392B;
 }
 
 /* HUD di selezione corrente sopra la ruota */
