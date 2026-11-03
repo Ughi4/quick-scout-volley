@@ -549,11 +549,11 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
             <div>
               <label style="display:block; margin-bottom:4px; font-weight:bold;">Squadra Casa:</label>
-              <input id="input-nome-casa" type="text" value="CASA" placeholder="CASA" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+              <input id="input-nome-casa" type="text" value="CASA" placeholder="CASA" oninput="app.aggiornaNomeSquadra('casa', this.value)" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
             </div>
             <div>
               <label style="display:block; margin-bottom:4px; font-weight:bold;">Squadra Ospite:</label>
-              <input id="input-nome-ospite" type="text" value="OSPITI" placeholder="OSPITI" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+              <input id="input-nome-ospite" type="text" value="OSPITI" placeholder="OSPITI" oninput="app.aggiornaNomeSquadra('ospite', this.value)" style="width:100%; padding:8px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
             </div>
           </div>
 
@@ -661,6 +661,7 @@
             <div style="display:flex; gap:8px;">
               <button id="btn-storico-vista-partite" class="btn-bottom" style="background:#00ADB5; font-size:11px; padding:6px 10px;" onclick="app.cambiaSottoTabStorico('partite')">📁 Partite Archiviate</button>
               <button id="btn-storico-vista-cumulative" class="btn-bottom" style="background:#0C8A80; font-size:11px; padding:6px 10px;" onclick="app.cambiaSottoTabStorico('cumulative')">📈 Statistiche Stagionali</button>
+              <button id="btn-storico-cestino" class="btn-bottom" style="background:#4A5568; font-size:11px; padding:6px 10px;" onclick="app.mostraCestinoPartite()" title="Visualizza e recupera le partite eliminate o sovrascritte">🗑️ Cestino Partite</button>
             </div>
             <button class="btn-bottom" style="padding:6px 12px; font-size:11px; background:#F39C12; font-weight:bold;" onclick="app.sospendiPartitaInCorso()">
               💾 Salva Match (In Corso)
@@ -912,6 +913,54 @@
         <button class="btn-bottom" onclick="document.getElementById('modal-report-interattivo').classList.remove('visibile')" style="background:#555;">
           Chiudi
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE RINOMINA PARTITA SALVATA -->
+  <div id="modal-rinomina-partita" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px; width: 90%;">
+      <div class="modal-header">
+        <h3 class="modal-titolo">✏️ Rinomina Squadre Partita</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-rinomina-partita').classList.remove('visibile')">✕</button>
+      </div>
+      <div class="modal-body" style="padding:14px 16px;">
+        <p style="font-size:12px; color:#E0F2F1; margin-bottom:14px; line-height:1.5;">
+          Modifica il nome delle due squadre per questa partita archiviata. Le modifiche si rifletteranno subito nello Storico, nelle statistiche e nel referto PDF.
+        </p>
+        <input type="hidden" id="rinomina-partita-id" value="">
+        <div style="margin-bottom:12px;">
+          <label style="display:block; margin-bottom:4px; font-weight:bold; font-size:12px; color:#00E5FF;">Squadra Casa:</label>
+          <input id="rinomina-input-casa" type="text" style="width:100%; padding:8px 10px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; margin-bottom:4px; font-weight:bold; font-size:12px; color:#00E5FF;">Squadra Ospite / Avversaria:</label>
+          <input id="rinomina-input-ospite" type="text" style="width:100%; padding:8px 10px; border-radius:4px; font-size:14px; background:#0C8A80; color:white; border:1px solid rgba(255,255,255,0.3);">
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-bottom" onclick="document.getElementById('modal-rinomina-partita').classList.remove('visibile')" style="background:#555;">Annulla</button>
+        <button class="btn-bottom" onclick="app.salvaRinominaPartita()" style="background:#00ADB5; font-weight:bold;">💾 Salva Modifiche</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE CESTINO PARTITE ELIMINATE / RECUPERO -->
+  <div id="modal-cestino-partite" class="modal-overlay">
+    <div class="modal-box" style="max-width: 600px; width: 92%;">
+      <div class="modal-header">
+        <h3 class="modal-titolo">🗑️ Cestino Partite & Recupero</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('modal-cestino-partite').classList.remove('visibile')">✕</button>
+      </div>
+      <div class="modal-body" style="padding:14px 16px;">
+        <p style="font-size:12px; color:#E0F2F1; margin-bottom:12px; line-height:1.5;">
+          Qui vengono conservate le ultime partite eliminate o sostituite. Puoi ripristinarle nello Storico con un solo tocco senza perdere alcuno scout.
+        </p>
+        <div id="lista-cestino-container" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <button class="btn-bottom" onclick="app.svuotaCestinoPartite()" style="background:#C62828; font-size:11px;">🗑️ Svuota Cestino</button>
+        <button class="btn-bottom" onclick="document.getElementById('modal-cestino-partite').classList.remove('visibile')" style="background:#555;">Chiudi</button>
       </div>
     </div>
   </div>

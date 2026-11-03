@@ -1057,6 +1057,9 @@ class ScoutApp {
     this.setCorrente++;
     this.puntiCasa = 0;
     this.puntiOspite = 0;
+    this.timeoutCasa = 0;
+    this.timeoutOspite = 0;
+    this.sostituzioniCasa = 0;
     this.numeroPunto = 1;
     this.numeroScambio = 0;
     this.archiviaPartitaCorrente(false, false);
@@ -1079,6 +1082,9 @@ class ScoutApp {
   sospendiPartitaDopoSet() {
     const modal = document.getElementById('modal-inizio-set');
     if (modal) modal.classList.remove('visibile');
+    this.timeoutCasa = 0;
+    this.timeoutOspite = 0;
+    this.sostituzioniCasa = 0;
     this.sospendiPartitaInCorso();
   }
 
@@ -1113,6 +1119,11 @@ class ScoutApp {
     this.liberoDesignatoId = p.liberoDesignatoId ?? this.liberoDesignatoId;
     this.liberoSostituitoId = p.liberoSostituitoId ?? null;
     this.liberoEsclusoManualmente = false;
+
+    // Calcola timeout e sostituzioni effettive del set in corso per non trascinare dati da set precedenti
+    this.sostituzioniCasa = (this.storicoEventi || []).filter(e => e.tipo === 'sostituzione' && e.set === this.setCorrente && !e.annullato).length;
+    this.timeoutCasa = (this.storicoEventi || []).filter(e => e.tipo === 'timeout' && e.set === this.setCorrente && e.dettagli?.squadra !== 'Ospiti' && !e.annullato).length;
+    this.timeoutOspite = (this.storicoEventi || []).filter(e => e.tipo === 'timeout' && e.set === this.setCorrente && e.dettagli?.squadra === 'Ospiti' && !e.annullato).length;
 
     let vC = 0, vO = 0;
     this.storicoSet.forEach(s => {
@@ -2877,6 +2888,8 @@ class ScoutApp {
     if (tabOspite) tabOspite.classList.toggle('in-battuta', !this.haPallaCasa);
 
     // 2. Sostituzioni (Capsula con conteggio 8 max)
+    // Sincronizza sempre le sostituzioni con il set corrente per evitare accumuli tra set
+    this.sostituzioniCasa = (this.storicoEventi || []).filter(e => e.tipo === 'sostituzione' && e.set === this.setCorrente && !e.annullato).length;
     const sostNum = document.getElementById('sostituzioni-counter');
     const sostLabel = document.getElementById('sostituzioni-label');
     if (sostNum) {
@@ -3134,9 +3147,19 @@ class ScoutApp {
     }
   }
 
+  aggiornaNomeSquadra(tipo, val) {
+    if (tipo === 'casa') {
+      this.squadraCasa = (val && val.trim()) ? val.trim() : 'CASA';
+    } else {
+      this.squadraOspite = (val && val.trim()) ? val.trim() : 'OSPITI';
+    }
+    this.salvaStato();
+    this.render();
+  }
+
   avviaNuovaPartita() {
     if (this.storicoEventi && this.storicoEventi.length > 0) {
-      if (!confirm('Vuoi avviare una nuova partita azzerando punteggi, set ed eventi?\n\nLa partita attuale verrà archiviata nello "Storico Partite" e il tuo Roster rimarrà conservato.')) {
+      if (!confirm('Vuoi archiviare la partita attuale nello "Storico Partite" e avviarne una nuova?\n\nIl tuo Roster rimarrà conservato.')) {
         return;
       }
       this.archiviaPartitaCorrente(false, false);
@@ -3144,6 +3167,13 @@ class ScoutApp {
       if (!confirm('Vuoi avviare una nuova partita azzerando punteggi e set?\n\nIl tuo Roster rimarrà conservato.')) {
         return;
       }
+    }
+
+    const avvSuggerito = prompt('Inserisci il nome della Squadra Ospite / Avversaria per la nuova partita:\n(Lascia vuoto per mantenere "' + this.squadraOspite + '")', '');
+    if (avvSuggerito !== null && avvSuggerito.trim() !== '') {
+      this.squadraOspite = avvSuggerito.trim();
+      const inOspite = document.getElementById('input-nome-ospite');
+      if (inOspite) inOspite.value = this.squadraOspite;
     }
 
     this.partitaInCorsoId = Date.now();
@@ -3225,16 +3255,37 @@ class ScoutApp {
     const ora = new Date();
     const dataStr = `${ora.getDate().toString().padStart(2, '0')}/${(ora.getMonth() + 1).toString().padStart(2, '0')}/${ora.getFullYear()} ${ora.getHours().toString().padStart(2, '0')}:${ora.getMinutes().toString().padStart(2, '0')}`;
 
+    // Sincronizza con i campi di testo delle squadre se presenti nel DOM
+    const inCasa = document.getElementById('input-nome-casa');
+    const inOspite = document.getElementById('input-nome-ospite');
+    if (inCasa && inCasa.value && inCasa.value.trim()) this.squadraCasa = inCasa.value.trim();
+    if (inOspite && inOspite.value && inOspite.value.trim()) this.squadraOspite = inOspite.value.trim();
+
     if (!this.archivioPartite) this.archivioPartite = [];
     if (!this.partitaInCorsoId) {
       this.partitaInCorsoId = Date.now();
     }
 
     let existingIndex = this.archivioPartite.findIndex(p => p.id === this.partitaInCorsoId);
+
+    // PROTEZIONE SOVRASCRITTURA MATCH CON AVVERSARI DIVERSI:
+    // Se la partita trovata per ID ha un avversario diverso (es. l'utente ha modificato la squadra avversaria
+    // senza premere "Nuova Partita"), NON dobbiamo MAI sovrascrivere la vecchia partita nello storico!
+    if (existingIndex !== -1) {
+      const pOld = this.archivioPartite[existingIndex];
+      const ospiteVecchio = (pOld.squadraOspite || '').trim().toLowerCase();
+      const ospiteNuovo = (this.squadraOspite || '').trim().toLowerCase();
+      if (ospiteVecchio && ospiteNuovo && ospiteVecchio !== 'ospiti' && ospiteNuovo !== 'ospiti' && ospiteVecchio !== ospiteNuovo) {
+        this.archiviaInCestinoBackup(pOld);
+        this.partitaInCorsoId = Date.now();
+        existingIndex = -1;
+      }
+    }
+
     if (existingIndex === -1) {
       existingIndex = this.archivioPartite.findIndex(p => 
-        p.squadraCasa === this.squadraCasa && 
-        p.squadraOspite === this.squadraOspite &&
+        p.squadraCasa.toLowerCase().trim() === this.squadraCasa.toLowerCase().trim() && 
+        p.squadraOspite.toLowerCase().trim() === this.squadraOspite.toLowerCase().trim() &&
         p.stato === 'in_corso'
       );
     }
@@ -3329,11 +3380,15 @@ class ScoutApp {
     const p = this.archivioPartite.find(item => item.id === id);
     if (!p) return;
 
-    if (!confirm(`Sei sicuro di voler eliminare dal tuo storico la partita del ${p.data} (${p.squadraCasa} vs ${p.squadraOspite})?`)) {
+    if (!confirm(`Sei sicuro di voler eliminare dal tuo storico la partita del ${p.data} (${p.squadraCasa} vs ${p.squadraOspite})?\n\nLa partita verrà spostata nel Cestino e potrà essere recuperata in qualsiasi momento.`)) {
       return;
     }
 
+    this.archiviaInCestinoBackup(p);
     this.archivioPartite = this.archivioPartite.filter(item => item.id !== id);
+    if (this.partitaInCorsoId === id) {
+      this.partitaInCorsoId = Date.now();
+    }
     this.salvaArchivioPartitePermanente();
     this.renderStoricoPartite();
   }
@@ -3482,6 +3537,9 @@ class ScoutApp {
           Parziali Set: <strong>${parzialiStr}</strong>
         </div>
         <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:4px; flex-wrap:wrap;">
+          <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#34495E; color:white;" onclick="app.apriModalRinominaPartita(${p.id})" title="Modifica il nome delle squadre della partita">
+            ✏️ Rinomina
+          </button>
           ${btnRiprendiHtml}
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#00ADB5;" onclick="app.apriReportInterattivoPerPartita(${p.id})" title="Visualizza Statistiche e Giocatori a Schermo">
             📊 Report
@@ -3489,13 +3547,185 @@ class ScoutApp {
           <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#FE5100;" onclick="app.generaReportPDFPerPartita(${p.id})" title="Scarica Report PDF della Partita">
             📄 PDF
           </button>
-          <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#C62828;" onclick="app.eliminaPartitaDaStorico(${p.id})" title="Elimina Partita dallo Storico">
+          <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#C62828;" onclick="app.eliminaPartitaDaStorico(${p.id})" title="Elimina Partita dallo Storico (sposta nel Cestino)">
             🗑️
           </button>
         </div>
       `;
       container.appendChild(card);
     });
+  }
+
+  // =========================================================
+  // RINOMINA PARTITA & CESTINO RECUPERO
+  // =========================================================
+  apriModalRinominaPartita(id) {
+    const p = this.archivioPartite.find(item => item.id === id);
+    if (!p) return;
+    const modal = document.getElementById('modal-rinomina-partita');
+    const inputId = document.getElementById('rinomina-partita-id');
+    const inputCasa = document.getElementById('rinomina-input-casa');
+    const inputOspite = document.getElementById('rinomina-input-ospite');
+    if (!modal || !inputId || !inputCasa || !inputOspite) return;
+
+    inputId.value = p.id;
+    inputCasa.value = p.squadraCasa || 'CASA';
+    inputOspite.value = p.squadraOspite || 'OSPITI';
+    modal.classList.add('visibile');
+    inputOspite.focus();
+  }
+
+  salvaRinominaPartita() {
+    const inputId = document.getElementById('rinomina-partita-id');
+    const inputCasa = document.getElementById('rinomina-input-casa');
+    const inputOspite = document.getElementById('rinomina-input-ospite');
+    if (!inputId || !inputCasa || !inputOspite) return;
+
+    const id = parseInt(inputId.value);
+    const p = this.archivioPartite.find(item => item.id === id);
+    if (!p) return;
+
+    const nuovaCasa = inputCasa.value.trim() || 'CASA';
+    const nuovaOspite = inputOspite.value.trim() || 'OSPITI';
+
+    p.squadraCasa = nuovaCasa;
+    p.squadraOspite = nuovaOspite;
+
+    // Se la partita rinominata è quella attualmente attiva sullo scout, sincronizza subito
+    if (this.partitaInCorsoId === id) {
+      this.squadraCasa = nuovaCasa;
+      this.squadraOspite = nuovaOspite;
+      const inCasa = document.getElementById('input-nome-casa');
+      const inOspite = document.getElementById('input-nome-ospite');
+      if (inCasa) inCasa.value = nuovaCasa;
+      if (inOspite) inOspite.value = nuovaOspite;
+      this.salvaStato();
+      this.render();
+    }
+
+    this.salvaArchivioPartitePermanente();
+    this.renderStoricoPartite();
+
+    const modal = document.getElementById('modal-rinomina-partita');
+    if (modal) modal.classList.remove('visibile');
+
+    alert(`Nome partita aggiornato in:\n"${nuovaCasa} vs ${nuovaOspite}"!`);
+  }
+
+  archiviaInCestinoBackup(partita) {
+    if (!partita) return;
+    try {
+      let cestino = JSON.parse(localStorage.getItem('quickscout_cestino') || '[]');
+      if (!Array.isArray(cestino)) cestino = [];
+      if (!cestino.some(c => c.id === partita.id && c.squadraOspite === partita.squadraOspite && c.dataAggiornamento === partita.dataAggiornamento)) {
+        cestino.unshift(JSON.parse(JSON.stringify(partita)));
+        if (cestino.length > 25) cestino = cestino.slice(0, 25);
+        localStorage.setItem('quickscout_cestino', JSON.stringify(cestino));
+      }
+    } catch (e) {
+      console.warn("Errore archiviazione nel cestino backup:", e);
+    }
+  }
+
+  mostraCestinoPartite() {
+    const modal = document.getElementById('modal-cestino-partite');
+    const container = document.getElementById('lista-cestino-container');
+    if (!modal || !container) return;
+
+    let cestino = [];
+    try {
+      cestino = JSON.parse(localStorage.getItem('quickscout_cestino') || '[]');
+    } catch (e) { cestino = []; }
+
+    container.innerHTML = '';
+    if (!cestino || cestino.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:24px 10px; color:rgba(255,255,255,0.7); font-size:13px; line-height:1.6;">
+          Il Cestino è vuoto.<br>
+          <small style="opacity:0.8;">Quando elimini una partita dallo Storico o quando viene sostituita, una copia di sicurezza viene salvata qui per permetterti di recuperarla in qualsiasi momento.</small>
+        </div>
+      `;
+    } else {
+      cestino.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'riga-atleta-roster';
+        item.style.padding = '8px 12px';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.style.flexWrap = 'wrap';
+        item.style.gap = '8px';
+
+        const parzStr = (p.storicoSet && p.storicoSet.length > 0)
+          ? p.storicoSet.map(s => `${s.puntiCasa}-${s.puntiOspite}`).join(', ')
+          : `${p.puntiCasa || 0}-${p.puntiOspite || 0}`;
+
+        item.innerHTML = `
+          <div>
+            <div style="font-weight:900; font-size:14px; color:white;">
+              ${p.squadraCasa} vs ${p.squadraOspite} 
+              <span style="color:#00E5FF; font-size:12px; font-weight:normal;">(${p.setVintiCasa ?? 0}-${p.setVintiOspite ?? 0})</span>
+            </div>
+            <div style="font-size:11px; opacity:0.75; margin-top:2px;">
+              📅 ${p.data || '-'} • Parziali: ${parzStr} • ${p.totaleAzioni || p.storicoEventi?.length || 0} azioni
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-bottom" style="padding:4px 10px; font-size:11px; background:#27AE60; font-weight:bold;" onclick="app.ripristinaPartitaDaCestino(${p.id})">
+              ♻️ Ripristina nello Storico
+            </button>
+            <button class="btn-bottom" style="padding:4px 8px; font-size:11px; background:#C62828;" onclick="app.eliminaDefinitivamenteDaCestino(${p.id})" title="Elimina per sempre">
+              🗑️
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    modal.classList.add('visibile');
+  }
+
+  ripristinaPartitaDaCestino(id) {
+    let cestino = [];
+    try {
+      cestino = JSON.parse(localStorage.getItem('quickscout_cestino') || '[]');
+    } catch (e) { cestino = []; }
+
+    const pIdx = cestino.findIndex(item => item.id === id);
+    if (pIdx === -1) return;
+    const p = cestino[pIdx];
+
+    // Se esiste già una partita con lo stesso ID nello storico, assegna un nuovo ID per sicurezza
+    if (this.archivioPartite.some(item => item.id === p.id)) {
+      p.id = Date.now();
+    }
+
+    this.archivioPartite.unshift(p);
+    cestino.splice(pIdx, 1);
+    localStorage.setItem('quickscout_cestino', JSON.stringify(cestino));
+    this.salvaArchivioPartitePermanente();
+    this.renderStoricoPartite();
+    this.mostraCestinoPartite();
+
+    alert(`Partita "${p.squadraCasa} vs ${p.squadraOspite}" ripristinata con successo nello Storico Partite!`);
+  }
+
+  eliminaDefinitivamenteDaCestino(id) {
+    let cestino = [];
+    try {
+      cestino = JSON.parse(localStorage.getItem('quickscout_cestino') || '[]');
+    } catch (e) { cestino = []; }
+
+    cestino = cestino.filter(item => item.id !== id);
+    localStorage.setItem('quickscout_cestino', JSON.stringify(cestino));
+    this.mostraCestinoPartite();
+  }
+
+  svuotaCestinoPartite() {
+    if (!confirm("Vuoi davvero svuotare definitivamente il Cestino delle partite eliminate?")) return;
+    localStorage.removeItem('quickscout_cestino');
+    this.mostraCestinoPartite();
   }
 
   ripristinaRosterPredefinito() {
@@ -3778,14 +4008,14 @@ class ScoutApp {
     let html = '';
 
     if (last.tipo === 'valutazione' || (!last.tipo && last.giocatore)) {
-      const g = last.giocatore;
+      const g = last.giocatore || {};
       const fond = (last.fondamentale || 'colpo').toUpperCase();
       const val = last.valutazione || '';
       const speciale = last.speciale ? '<span class="badge-speciale">' + last.speciale + '</span>' : '';
       const valClass = val === '++' ? 'val-pp' : val === '+' ? 'val-p' : val === '!' ? 'val-excl' : val === '-' ? 'val-m' : 'val-mm';
-      const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ');
+      const nominativo = [g.cognome, g.nome].filter(Boolean).join(' ') || (g.numero ? ('Giocatore #' + g.numero) : 'Atleta');
 
-      html = '<div class="annulla-chip-giocatore">#' + g.numero + ' ' + nominativo + '</div>' +
+      html = '<div class="annulla-chip-giocatore">#' + (g.numero || '-') + ' ' + nominativo + '</div>' +
         '<div class="annulla-chip-fond">' + fond + '</div>' +
         '<div class="annulla-chip-val ' + valClass + '">' + val + '</div> ' +
         speciale;
@@ -3794,7 +4024,7 @@ class ScoutApp {
     } else if (last.tipo === 'errore_avv') {
       html = '<div class="annulla-chip-avv green">🟢 Errore Avversari (+1 ' + this.squadraCasa + ')</div>';
     } else if (last.tipo === 'sostituzione') {
-      const d = last.dettagli;
+      const d = last.dettagli || {};
       const zNum = d.zona === 0 ? 1 : d.zona === 1 ? 2 : d.zona === 2 ? 3 : d.zona === 3 ? 4 : d.zona === 4 ? 5 : 6;
       html = '<div class="annulla-chip-sost">🔄 Sostituzione #' + (d.esce?.numero || '-') + ' ➔ #' + (d.entra?.numero || '-') + ' (Z' + zNum + ')</div>';
     } else if (last.tipo === 'timeout') {
