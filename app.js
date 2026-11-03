@@ -1701,7 +1701,7 @@ class ScoutApp {
 
       const tutteLePagine = opzioni.tutteLePagine === true;
       const vistaScelta = opzioni.vista || this.sottoVistaReport || 'matrice';
-      const totalePagine = tutteLePagine ? 3 : 2;
+      const totalePagine = tutteLePagine ? 4 : (vistaScelta === 'sintetica' || vistaScelta === 'colpi') ? 2 : 3;
 
       // 1. Precaricamento delle immagini ufficiali
       const immaginiDaCaricare = {
@@ -2601,15 +2601,207 @@ class ScoutApp {
         doc.text(dataFormattata, 195, 287, { align: "right" });
       };
 
+      // 3. GENERATORE PAGINA DETTAGLIO COLPI & ALZATE
+      const disegnaColpiEAlzatePagina = (paginaNum, totPag) => {
+        doc.addPage();
+
+        // Header Pagina: Box punteggio
+        doc.setFillColor(0, 119, 107);
+        doc.roundedRect(10, 10, 24, 14, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(`${setVintiCasa}-${setVintiOspite}`, 22, 19.5, { align: "center" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${squadraCasa} vs ${squadraOspite}`, 38, 16);
+
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(38, 18.5, 150, 18.5);
+
+        if (imgMap.logo) {
+          doc.addImage(imgMap.logo, 'PNG', 158, 9, 37, 16);
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(254, 81, 0);
+        doc.text("Dettaglio Tipologia Attacchi & Alzate per Atleta", 10, 30);
+
+        const tableTopY = 33;
+        const colW = [7, 31, 8, 12, 15, 15, 15, 15, 14, 14, 12, 8, 8, 8, 8];
+        const colX = [10];
+        for (let i = 0; i < colW.length - 1; i++) {
+          colX.push(colX[i] + colW[i]);
+        }
+
+        doc.setFillColor(3, 83, 78);
+        doc.rect(10, tableTopY, 190, 7.5, 'F');
+
+        doc.setFillColor(39, 174, 96);
+        doc.rect(colX[4], tableTopY, 15, 7.5, 'F');
+        doc.setFillColor(211, 84, 0);
+        doc.rect(colX[5], tableTopY, 15, 7.5, 'F');
+        doc.setFillColor(41, 128, 185);
+        doc.rect(colX[6], tableTopY, 15, 7.5, 'F');
+        doc.setFillColor(192, 57, 43);
+        doc.rect(colX[7], tableTopY, 15, 7.5, 'F');
+        doc.setFillColor(146, 43, 33);
+        doc.rect(colX[10], tableTopY, 44, 7.5, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("#", colX[0] + colW[0] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Atleta", colX[1] + 2, tableTopY + 5);
+        doc.text("Ruolo", colX[2] + colW[2] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Att Tot", colX[3] + colW[3] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Mani Out", colX[4] + colW[4] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Mur. Loro", colX[5] + colW[5] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Mur. Noi", colX[6] + colW[6] / 2, tableTopY + 5, { align: "center" });
+        doc.text("M. Out Sub", colX[7] + colW[7] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Pall/Piaz", colX[8] + colW[8] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Fast/Pipe", colX[9] + colW[9] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Alz Tot", colX[10] + colW[10] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Tesa", colX[11] + colW[11] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Super", colX[12] + colW[12] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Mezza", colX[13] + colW[13] / 2, tableTopY + 5, { align: "center" });
+        doc.text("Alta", colX[14] + colW[14] / 2, tableTopY + 5, { align: "center" });
+
+        let rowY = tableTopY + 7.5;
+        playerRows.forEach((st, idx) => {
+          const g = st.giocatore;
+          const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || (`Atleta #${g.numero}`);
+
+          if (idx % 2 === 1) {
+            doc.setFillColor(248, 248, 248);
+            doc.rect(10, rowY, 190, 6.2, 'F');
+          }
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.setTextColor(0, 119, 107);
+          doc.text(String(g.numero), colX[0] + colW[0] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(20, 20, 20);
+          doc.text(nom.substring(0, 18) + (g.capitano ? " (K)" : ""), colX[1] + 2, rowY + 4.3);
+          doc.text(g.ruolo || "-", colX[2] + colW[2] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(186, 74, 0);
+          doc.text(String(st.attTot), colX[3] + colW[3] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setTextColor(39, 174, 96);
+          doc.text(st.attManiOutNostro > 0 ? String(st.attManiOutNostro) : "-", colX[4] + colW[4] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setTextColor(211, 84, 0);
+          doc.text(st.attMurataLoro > 0 ? String(st.attMurataLoro) : "-", colX[5] + colW[5] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setTextColor(0, 150, 170);
+          doc.text(st.attMurataNoi > 0 ? String(st.attMurataNoi) : "-", colX[6] + colW[6] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setTextColor(192, 57, 43);
+          doc.text(st.attManiOutSubito > 0 ? String(st.attManiOutSubito) : "-", colX[7] + colW[7] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(50, 50, 50);
+          const pallPiaz = (st.attPallonetto || 0) + (st.attPiazzata || 0);
+          doc.text(pallPiaz > 0 ? String(pallPiaz) : "-", colX[8] + colW[8] / 2, rowY + 4.3, { align: "center" });
+
+          const fastPipe = (st.attFast || 0) + (st.attPipe || 0);
+          doc.text(fastPipe > 0 ? String(fastPipe) : "-", colX[9] + colW[9] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(146, 43, 33);
+          doc.text(st.alzTot > 0 ? String(st.alzTot) : "-", colX[10] + colW[10] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(40, 40, 40);
+          doc.text(st.alzTesa > 0 ? String(st.alzTesa) : "-", colX[11] + colW[11] / 2, rowY + 4.3, { align: "center" });
+          doc.text(st.alzSuper > 0 ? String(st.alzSuper) : "-", colX[12] + colW[12] / 2, rowY + 4.3, { align: "center" });
+          doc.text(st.alzMezza > 0 ? String(st.alzMezza) : "-", colX[13] + colW[13] / 2, rowY + 4.3, { align: "center" });
+          doc.text(st.alzAlta > 0 ? String(st.alzAlta) : "-", colX[14] + colW[14] / 2, rowY + 4.3, { align: "center" });
+
+          doc.setDrawColor(230, 230, 230);
+          doc.setLineWidth(0.2);
+          doc.line(10, rowY + 6.2, 200, rowY + 6.2);
+
+          rowY += 6.2;
+        });
+
+        doc.setFillColor(3, 83, 78);
+        doc.rect(10, rowY, 190, 7, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("TOT", colX[0] + colW[0] / 2, rowY + 4.8, { align: "center" });
+        doc.text("TOTALE SQUADRA", colX[1] + 2, rowY + 4.8);
+        doc.text("-", colX[2] + colW[2] / 2, rowY + 4.8, { align: "center" });
+
+        doc.text(String(teamTot.attTot), colX[3] + colW[3] / 2, rowY + 4.8, { align: "center" });
+        doc.setTextColor(46, 204, 113);
+        doc.text(String(teamTot.attManiOutNostro), colX[4] + colW[4] / 2, rowY + 4.8, { align: "center" });
+        doc.setTextColor(243, 156, 18);
+        doc.text(String(teamTot.attMurataLoro), colX[5] + colW[5] / 2, rowY + 4.8, { align: "center" });
+        doc.setTextColor(0, 229, 255);
+        doc.text(String(teamTot.attMurataNoi), colX[6] + colW[6] / 2, rowY + 4.8, { align: "center" });
+        doc.setTextColor(231, 76, 60);
+        doc.text(String(teamTot.attManiOutSubito), colX[7] + colW[7] / 2, rowY + 4.8, { align: "center" });
+
+        doc.setTextColor(255, 255, 255);
+        doc.text(String((teamTot.attPallonetto || 0) + (teamTot.attPiazzata || 0)), colX[8] + colW[8] / 2, rowY + 4.8, { align: "center" });
+        doc.text(String((teamTot.attFast || 0) + (teamTot.attPipe || 0)), colX[9] + colW[9] / 2, rowY + 4.8, { align: "center" });
+
+        doc.text(String(teamTot.alzTot), colX[10] + colW[10] / 2, rowY + 4.8, { align: "center" });
+        doc.text(String(teamTot.alzTesa), colX[11] + colW[11] / 2, rowY + 4.8, { align: "center" });
+        doc.text(String(teamTot.alzSuper), colX[12] + colW[12] / 2, rowY + 4.8, { align: "center" });
+        doc.text(String(teamTot.alzMezza), colX[13] + colW[13] / 2, rowY + 4.8, { align: "center" });
+        doc.text(String(teamTot.alzAlta), colX[14] + colW[14] / 2, rowY + 4.8, { align: "center" });
+
+        rowY += 12;
+        doc.setFillColor(245, 245, 245);
+        doc.roundedRect(10, rowY, 190, 16, 1.5, 1.5, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(3, 83, 78);
+        doc.text("Legenda Tipologie di Colpo & Alzata:", 13, rowY + 4.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(50, 50, 50);
+        doc.text("• Mani Out: punto nostro conquistato sulle mani del muro avversario (#/++).", 13, rowY + 8.5);
+        doc.text("• Murata Loro: attacco respinto/toccato dal muro e difeso dagli avversari che contrattaccano (!).", 13, rowY + 12);
+        doc.text("• Murata Noi: attacco toccato dal muro e coperto dalla nostra squadra per nuova alzata (+).", 105, rowY + 8.5);
+        doc.text("• Mani Out Sub: punto avversario su tocco del nostro muro/copertura fuori (=/==).", 105, rowY + 12);
+
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(10, 282, 200, 282);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(110, 110, 110);
+        doc.text(`pag. ${paginaNum}-${totPag}`, 10, 287);
+        doc.text(dataFormattata, 200, 287, { align: "right" });
+      };
+
       // SELEZIONE PAGINE IN BASE ALLA RICHIESTA
       if (tutteLePagine) {
-        disegnaMatriceFondamentaliPagina(2, 3);
-        disegnaSinteticaPagina(3, 3);
+        disegnaMatriceFondamentaliPagina(2, 4);
+        disegnaColpiEAlzatePagina(3, 4);
+        disegnaSinteticaPagina(4, 4);
       } else if (vistaScelta === 'sintetica') {
         disegnaSinteticaPagina(2, 2);
+      } else if (vistaScelta === 'colpi') {
+        disegnaColpiEAlzatePagina(2, 2);
       } else {
-        // Default: MATRICE FONDAMENTALI (# + ! - =)
-        disegnaMatriceFondamentaliPagina(2, 2);
+        // Default: Pagina 2 = Matrice Fondamentali, Pagina 3 = Dettaglio Colpi & Alzate per Atleta
+        disegnaMatriceFondamentaliPagina(2, 3);
+        disegnaColpiEAlzatePagina(3, 3);
       }
 
       doc.save(`QuickScout_Report_${squadraCasa.replace(/\s+/g, '_')}_vs_${squadraOspite.replace(/\s+/g, '_')}.pdf`);
