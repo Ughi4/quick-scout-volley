@@ -100,7 +100,7 @@ class ScoutApp {
     this.sottoTabStoricoAttivo = 'partite';
     this.partitaInCorsoId = null;
     this.statoPartita = 'in_corso'; // 'in_corso' | 'conclusa'
-    this.sottoVistaReport = 'sintetica'; // 'sintetica' | 'matrice' | 'colpi'
+    this.sottoVistaReport = 'matrice'; // 'matrice' | 'sintetica' | 'colpi' (default Matrice Fondamentali con tutti i dettagli)
     this.filtroSetLog = 'tutti';
     this.ordineLog = 'recente'; // 'recente' | 'cronologico'
     this.centraliPartitaIds = [];
@@ -205,7 +205,7 @@ class ScoutApp {
         this.giocatoreAttivo = null;
         this.partitaInCorsoId = data.partitaInCorsoId || null;
         this.statoPartita = data.statoPartita || 'in_corso';
-        this.sottoVistaReport = data.sottoVistaReport || 'sintetica';
+        this.sottoVistaReport = data.sottoVistaReport || 'matrice';
         this.centraliPartitaIds = Array.isArray(data.centraliPartitaIds) ? data.centraliPartitaIds : [];
         this.liberoEsclusoManualmente = data.liberoEsclusoManualmente || false;
       } catch (e) {
@@ -1672,19 +1672,25 @@ class ScoutApp {
   // =========================================================
   // REPORT PDF COMPLETO (REPLICA ESATTA ORIGINALE QUICK SCOUT)
   // =========================================================
-  async generaReportPDF(matchData = null) {
+  async generaReportPDF(matchData = null, opzioni = {}) {
     try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
       // Supporto per matchData (per scaricare PDF direttamente dallo Storico Partite)
-      const squadraCasa = matchData ? matchData.squadraCasa : this.squadraCasa;
-      const squadraOspite = matchData ? matchData.squadraOspite : this.squadraOspite;
-      const setVintiCasa = matchData ? (matchData.setVintiCasa ?? 0) : this.setVintiCasa;
-      const setVintiOspite = matchData ? (matchData.setVintiOspite ?? 0) : this.setVintiOspite;
-      const setCorrente = matchData ? (matchData.setCorrente ?? 1) : this.setCorrente;
-      const storicoSet = matchData ? (matchData.storicoSet || []) : (this.storicoSet || []);
-      const storicoEventi = matchData ? (matchData.storicoEventi || []) : (this.storicoEventi || []);
+      const targetMatch = matchData || this.reportMatchData;
+      const squadraCasa = targetMatch ? targetMatch.squadraCasa : this.squadraCasa;
+      const squadraOspite = targetMatch ? targetMatch.squadraOspite : this.squadraOspite;
+      const setVintiCasa = targetMatch ? (targetMatch.setVintiCasa ?? 0) : this.setVintiCasa;
+      const setVintiOspite = targetMatch ? (targetMatch.setVintiOspite ?? 0) : this.setVintiOspite;
+      const setCorrente = targetMatch ? (targetMatch.setCorrente ?? 1) : this.setCorrente;
+      const storicoSet = targetMatch ? (targetMatch.storicoSet || []) : (this.storicoSet || []);
+      const storicoEventi = targetMatch ? (targetMatch.storicoEventi || []) : (this.storicoEventi || []);
+      const playerList = targetMatch ? (targetMatch.tuttiGiocatori || this.tuttiGiocatori) : this.tuttiGiocatori;
+
+      const tutteLePagine = opzioni.tutteLePagine === true;
+      const vistaScelta = opzioni.vista || this.sottoVistaReport || 'matrice';
+      const totalePagine = tutteLePagine ? 3 : 2;
 
       // 1. Precaricamento delle immagini ufficiali
       const immaginiDaCaricare = {
@@ -2105,7 +2111,7 @@ class ScoutApp {
         doc.text(`${stats.mm} ==`, colCenter, rigaY, { align: "center" });
       });
 
-      // FOOTER PAGINA 1: Separatore rosso, pag. 1-2 e data corrente
+      // FOOTER PAGINA 1: Separatore rosso, pag. 1-X e data corrente
       doc.setDrawColor(254, 81, 0); // #fe5100
       doc.setLineWidth(0.5);
       doc.line(15, 282, 195, 282);
@@ -2113,62 +2119,29 @@ class ScoutApp {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(110, 110, 110);
-      doc.text("pag. 1-2", 15, 287);
+      doc.text(`pag. 1-${totalePagine}`, 15, 287);
 
       const oggi = new Date();
       const dataFormattata = `${oggi.getDate().toString().padStart(2, '0')}/${(oggi.getMonth() + 1).toString().padStart(2, '0')}/${oggi.getFullYear()}`;
       doc.text(dataFormattata, 195, 287, { align: "right" });
 
-      // ==========================================
-      // PAGINA 2: TABELLA STATISTICHE GIOCATORI (DotNext Style)
-      // ==========================================
-      doc.addPage();
-
-      // Header Pagina 2: Box punteggio
-      doc.setFillColor(0, 119, 107); // #00776b
-      doc.roundedRect(15, 14, 23, 14, 1.5, 1.5, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(`${setVintiCasa}-${setVintiOspite}`, 26.5, 23, { align: "center" });
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${squadraCasa} vs ${squadraOspite}`, 42, 20);
-
-      doc.setDrawColor(254, 81, 0);
-      doc.setLineWidth(0.5);
-      doc.line(42, 22.5, 150, 22.5);
-
-      if (imgMap.logo) {
-        doc.addImage(imgMap.logo, 'PNG', 158, 13, 37, 16);
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(254, 81, 0);
-      doc.text("Statistiche Giocatori", 15, 34);
-
-      // Statistiche per ogni atleta
+      // Statistiche complete per ogni atleta
       const statsMap = {};
-      this.tuttiGiocatori.forEach(g => {
+      playerList.forEach(g => {
         statsMap[g.id] = {
           giocatore: g,
           totAzioni: 0,
           totPunti: 0,
-          battuteTot: 0,
-          aces: 0,
-          errBattuta: 0,
-          ricezioniTot: 0,
-          perfRicezione: 0,
-          posRicezione: 0,
-          errRicezione: 0,
-          attacchiTot: 0,
-          killAttacco: 0,
-          errAttacco: 0,
-          muratiAttacco: 0,
-          muriPunto: 0
+          batTot: 0, batPP: 0, batP: 0, batSlash: 0, batM: 0, batMM: 0,
+          ricTot: 0, ricPP: 0, ricP: 0, ricSlash: 0, ricM: 0, ricMM: 0,
+          attTot: 0, attPP: 0, attP: 0, attSlash: 0, attM: 0, attMM: 0,
+          murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
+          difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
+          alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
+          attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0,
+          attManiOutNostro: 0, attMurataLoro: 0, attMurataNoi: 0, attManiOutSubito: 0,
+          attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+          alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
         };
       });
 
@@ -2180,201 +2153,453 @@ class ScoutApp {
             giocatore: ev.giocatore,
             totAzioni: 0,
             totPunti: 0,
-            battuteTot: 0,
-            aces: 0,
-            errBattuta: 0,
-            ricezioniTot: 0,
-            perfRicezione: 0,
-            posRicezione: 0,
-            errRicezione: 0,
-            attacchiTot: 0,
-            killAttacco: 0,
-            errAttacco: 0,
-            muratiAttacco: 0,
-            muriPunto: 0
+            batTot: 0, batPP: 0, batP: 0, batSlash: 0, batM: 0, batMM: 0,
+            ricTot: 0, ricPP: 0, ricP: 0, ricSlash: 0, ricM: 0, ricMM: 0,
+            attTot: 0, attPP: 0, attP: 0, attSlash: 0, attM: 0, attMM: 0,
+            murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
+            difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
+            alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
+            attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0,
+            attManiOutNostro: 0, attMurataLoro: 0, attMurataNoi: 0, attManiOutSubito: 0,
+            attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+            alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
           };
         }
         const st = statsMap[gId];
         st.totAzioni++;
+        const val = ev.valutazione;
+        const spec = (ev.speciale || '').toUpperCase();
+
         if (ev.fondamentale === 'battuta') {
-          st.battuteTot++;
-          if (ev.valutazione === '++') { st.aces++; st.totPunti++; }
-          else if (ev.valutazione === '==') { st.errBattuta++; }
+          st.batTot++;
+          if (val === '++') { st.batPP++; st.totPunti++; }
+          else if (val === '+') st.batP++;
+          else if (val === '!') st.batSlash++;
+          else if (val === '-') st.batM++;
+          else if (val === '==') st.batMM++;
         } else if (ev.fondamentale === 'ricezione') {
-          st.ricezioniTot++;
-          if (ev.valutazione === '++') st.perfRicezione++;
-          else if (ev.valutazione === '+') st.posRicezione++;
-          else if (ev.valutazione === '==') st.errRicezione++;
+          st.ricTot++;
+          if (val === '++') st.ricPP++;
+          else if (val === '+') st.ricP++;
+          else if (val === '!') st.ricSlash++;
+          else if (val === '-') st.ricM++;
+          else if (val === '==') st.ricMM++;
         } else if (ev.fondamentale === 'attacco') {
-          st.attacchiTot++;
-          if (ev.valutazione === '++') { st.killAttacco++; st.totPunti++; }
-          else if (ev.valutazione === '==') { st.errAttacco++; }
-          else if (ev.valutazione === '-' || ev.speciale === 'TOCCATO MURO') { st.muratiAttacco++; }
+          st.attTot++;
+          if (val === '++') { st.attPP++; st.totPunti++; }
+          else if (val === '+') st.attP++;
+          else if (val === '!') st.attSlash++;
+          else if (val === '-') st.attM++;
+          else if (val === '==') st.attMM++;
+
+          if (spec === 'PALLONETTO') st.attPallonetto++;
+          else if (spec === 'PIAZZATA') st.attPiazzata++;
+          else if (spec === 'FAST') st.attFast++;
+          else if (spec === 'PIPE') st.attPipe++;
+          else if (spec === 'SLASH') st.attSlashSub++;
+          else if (spec === 'MANI OUT NOSTRO' || spec === 'MANI OUT') { st.attManiOutNostro++; st.attManiOut++; }
+          else if (spec === 'MURATA RIGIOCANO LORO' || spec === 'TOCCATO MURO') { st.attMurataLoro++; st.attToccatoMuro++; }
+          else if (spec === 'MURATA RIGIOCHIAMO NOI') st.attMurataNoi++;
+          else if (spec === 'MANI OUT SUBITO') st.attManiOutSubito++;
+          else st.attStandard++;
         } else if (ev.fondamentale === 'muro') {
-          if (ev.valutazione === '++') { st.muriPunto++; st.totPunti++; }
+          st.murTot++;
+          if (val === '++') { st.murPP++; st.totPunti++; }
+          else if (val === '+') st.murP++;
+          else if (val === '!') st.murSlash++;
+          else if (val === '-') st.murM++;
+          else if (val === '==') st.murMM++;
+        } else if (ev.fondamentale === 'difesa') {
+          st.difTot++;
+          if (val === '++') st.difPP++;
+          else if (val === '+') st.difP++;
+          else if (val === '!') st.difSlash++;
+          else if (val === '-') st.difM++;
+          else if (val === '==') st.difMM++;
+        } else if (ev.fondamentale === 'alzata') {
+          st.alzTot++;
+          if (val === '++') { st.alzPP++; st.totPunti++; }
+          else if (val === '+') st.alzP++;
+          else if (val === '!') st.alzSlash++;
+          else if (val === '-') st.alzM++;
+          else if (val === '==') st.alzMM++;
+
+          if (spec === 'SUPER' || spec.includes('VELOCE')) st.alzSuper++;
+          else if (spec === 'TESA') st.alzTesa++;
+          else if (spec === 'MEZZA') st.alzMezza++;
+          else if (spec === 'ALTA') st.alzAlta++;
         }
       });
 
       const playerRows = Object.values(statsMap)
-        .filter(st => st.totAzioni > 0 || st.giocatore.convocato)
-        .sort((a, b) => b.totPunti - a.totPunti);
+        .filter(st => st.totAzioni > 0 || (st.giocatore && st.giocatore.convocato))
+        .sort((a, b) => b.totPunti - a.totPunti || (a.giocatore?.numero || 0) - (b.giocatore?.numero || 0));
 
-      // Disegna tabella intestazione
-      const tableTopY = 38;
-      doc.setFillColor(3, 83, 78); // #03534E
-      doc.rect(15, tableTopY, 180, 7, 'F');
+      const teamTot = {
+        totPunti: 0,
+        batTot: 0, batPP: 0, batP: 0, batSlash: 0, batM: 0, batMM: 0,
+        ricTot: 0, ricPP: 0, ricP: 0, ricSlash: 0, ricM: 0, ricMM: 0,
+        attTot: 0, attPP: 0, attP: 0, attSlash: 0, attM: 0, attMM: 0,
+        murTot: 0, murPP: 0, murP: 0, murSlash: 0, murM: 0, murMM: 0,
+        difTot: 0, difPP: 0, difP: 0, difSlash: 0, difM: 0, difMM: 0,
+        alzTot: 0, alzPP: 0, alzP: 0, alzSlash: 0, alzM: 0, alzMM: 0,
+        attPallonetto: 0, attPiazzata: 0, attFast: 0, attPipe: 0, attSlashSub: 0,
+        attManiOutNostro: 0, attMurataLoro: 0, attMurataNoi: 0, attManiOutSubito: 0,
+        attManiOut: 0, attToccatoMuro: 0, attStandard: 0,
+        alzSuper: 0, alzTesa: 0, alzMezza: 0, alzAlta: 0
+      };
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text("#", 18, tableTopY + 4.8);
-      doc.text("Giocatore", 24, tableTopY + 4.8);
-      doc.text("Ruolo", 62, tableTopY + 4.8);
-      doc.text("Pti", 76, tableTopY + 4.8);
-      doc.text("Ace/Bat", 88, tableTopY + 4.8);
-      doc.text("Kill/Att", 108, tableTopY + 4.8);
-      doc.text("Att %", 128, tableTopY + 4.8);
-      doc.text("Ric ++", 144, tableTopY + 4.8);
-      doc.text("Ric %", 160, tableTopY + 4.8);
-      doc.text("Muri", 180, tableTopY + 4.8);
-
-      let rowY = tableTopY + 7;
-      playerRows.forEach((st, idx) => {
-        const g = st.giocatore;
-        const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || (`Atleta #${g.numero}`);
-        const attEff = st.attacchiTot > 0 ? Math.round(((st.killAttacco - st.errAttacco - st.muratiAttacco) / st.attacchiTot) * 100) : 0;
-        const ricPosPct = st.ricezioniTot > 0 ? Math.round(((st.perfRicezione + st.posRicezione) / st.ricezioniTot) * 100) : 0;
-
-        if (idx % 2 === 1) {
-          doc.setFillColor(245, 245, 245);
-          doc.rect(15, rowY, 180, 6.2, 'F');
+      playerRows.forEach(r => {
+        for (const k in teamTot) {
+          teamTot[k] += (r[k] || 0);
         }
+      });
+
+      // 1. GENERATORE PAGINA MATRICE FONDAMENTALI (La prima schermata richiesta dal Coach!)
+      const disegnaMatriceFondamentaliPagina = (paginaNum, totPag) => {
+        doc.addPage();
+
+        // Header Pagina: Box punteggio
+        doc.setFillColor(0, 119, 107);
+        doc.roundedRect(10, 14, 23, 14, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(`${setVintiCasa}-${setVintiOspite}`, 21.5, 23, { align: "center" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${squadraCasa} vs ${squadraOspite}`, 37, 20);
+
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(37, 22.5, 150, 22.5);
+
+        if (imgMap.logo) {
+          doc.addImage(imgMap.logo, 'PNG', 162, 13, 37, 16);
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(254, 81, 0);
+        doc.text("Matrice Fondamentali Giocatori (# + ! - =)", 10, 33);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.2);
+        doc.setTextColor(90, 90, 90);
+        doc.text("Valutazioni ufficiali: # Vincente/Perfetto  •  + Positivo  •  ! Neutro/Slash  •  - Negativo  •  = Errore", 10, 36.8);
+
+        // TABELLA MATRICE
+        const tableTopY = 39;
+        doc.setFillColor(3, 83, 78);
+        doc.rect(10, tableTopY, 55, 8, 'F');
+
+        doc.setFillColor(183, 149, 11); // Battuta (Gold/Orange)
+        doc.rect(65, tableTopY, 22, 8, 'F');
+
+        doc.setFillColor(108, 52, 131); // Ricezione (Purple)
+        doc.rect(87, tableTopY, 22, 8, 'F');
+
+        doc.setFillColor(186, 74, 0); // Attacco (Red-Orange)
+        doc.rect(109, tableTopY, 23, 8, 'F');
+
+        doc.setFillColor(17, 122, 101); // Muro (Teal)
+        doc.rect(132, tableTopY, 21, 8, 'F');
+
+        doc.setFillColor(30, 132, 73); // Difesa (Green)
+        doc.rect(153, tableTopY, 23, 8, 'F');
+
+        doc.setFillColor(146, 43, 33); // Alzata (Dark Red)
+        doc.rect(176, tableTopY, 24, 8, 'F');
+
+        // Testi Header riga superiore
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.8);
+        doc.setTextColor(255, 255, 255);
+        doc.text("#", 13.5, tableTopY + 4.8, { align: "center" });
+        doc.text("Atleta", 18, tableTopY + 4.8);
+        doc.text("Ruolo", 51.5, tableTopY + 4.8, { align: "center" });
+        doc.text("Pti", 60.5, tableTopY + 4.8, { align: "center" });
+
+        doc.text("BATTUTA", 76, tableTopY + 3.8, { align: "center" });
+        doc.text("RICEZIONE", 98, tableTopY + 3.8, { align: "center" });
+        doc.text("ATTACCO", 120.5, tableTopY + 3.8, { align: "center" });
+        doc.text("MURO", 142.5, tableTopY + 3.8, { align: "center" });
+        doc.text("DIFESA", 164.5, tableTopY + 3.8, { align: "center" });
+        doc.text("ALZATA", 188, tableTopY + 3.8, { align: "center" });
+
+        // Testi Header riga inferiore
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(4.6);
+        doc.setTextColor(240, 240, 240);
+        const subLabel = "Tot | # | + | ! | - | =";
+        doc.text(subLabel, 76, tableTopY + 6.8, { align: "center" });
+        doc.text(subLabel, 98, tableTopY + 6.8, { align: "center" });
+        doc.text(subLabel, 120.5, tableTopY + 6.8, { align: "center" });
+        doc.text(subLabel, 142.5, tableTopY + 6.8, { align: "center" });
+        doc.text(subLabel, 164.5, tableTopY + 6.8, { align: "center" });
+        doc.text(subLabel, 188, tableTopY + 6.8, { align: "center" });
+
+        let rowY = tableTopY + 8;
+        playerRows.forEach((st, idx) => {
+          const g = st.giocatore;
+          const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || (`Atleta #${g.numero}`);
+          const cap = g.capitano ? " (K)" : "";
+
+          if (idx % 2 === 1) {
+            doc.setFillColor(248, 249, 249);
+            doc.rect(10, rowY, 190, 5.6, 'F');
+          }
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(0, 119, 107);
+          doc.text(String(g.numero), 13.5, rowY + 4, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.4);
+          doc.setTextColor(20, 20, 20);
+          doc.text(nom.substring(0, 18) + cap, 18, rowY + 4);
+
+          doc.setTextColor(60, 60, 60);
+          doc.text(g.ruolo || "-", 51.5, rowY + 4, { align: "center" });
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(46, 204, 113);
+          doc.text(String(st.totPunti), 60.5, rowY + 4, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.6);
+          doc.setTextColor(30, 30, 30);
+          doc.text(`${st.batTot} (${st.batPP}/${st.batP}/${st.batSlash}/${st.batM}/${st.batMM})`, 76, rowY + 4, { align: "center" });
+          doc.text(`${st.ricTot} (${st.ricPP}/${st.ricP}/${st.ricSlash}/${st.ricM}/${st.ricMM})`, 98, rowY + 4, { align: "center" });
+          doc.text(`${st.attTot} (${st.attPP}/${st.attP}/${st.attSlash}/${st.attM}/${st.attMM})`, 120.5, rowY + 4, { align: "center" });
+          doc.text(`${st.murTot} (${st.murPP}/${st.murP}/${st.murSlash}/${st.murM}/${st.murMM})`, 142.5, rowY + 4, { align: "center" });
+          doc.text(`${st.difTot} (${st.difPP}/${st.difP}/${st.difSlash}/${st.difM}/${st.difMM})`, 164.5, rowY + 4, { align: "center" });
+          doc.text(`${st.alzTot} (${st.alzPP}/${st.alzP}/${st.alzSlash}/${st.alzM}/${st.alzMM})`, 188, rowY + 4, { align: "center" });
+
+          doc.setDrawColor(230, 230, 230);
+          doc.setLineWidth(0.15);
+          doc.line(10, rowY + 5.6, 200, rowY + 5.6);
+
+          rowY += 5.6;
+        });
+
+        // Totale Squadra
+        doc.setFillColor(3, 83, 78);
+        doc.rect(10, rowY, 190, 6.2, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.6);
+        doc.setTextColor(255, 255, 255);
+        doc.text("TOT", 13.5, rowY + 4.3, { align: "center" });
+        doc.text("TOTALE SQUADRA", 18, rowY + 4.3);
+        doc.text("-", 51.5, rowY + 4.3, { align: "center" });
+
+        doc.setTextColor(0, 229, 255);
+        doc.text(String(teamTot.totPunti), 60.5, rowY + 4.3, { align: "center" });
+
+        doc.setFontSize(5.3);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${teamTot.batTot} (${teamTot.batPP}/${teamTot.batP}/${teamTot.batSlash}/${teamTot.batM}/${teamTot.batMM})`, 76, rowY + 4.3, { align: "center" });
+        doc.text(`${teamTot.ricTot} (${teamTot.ricPP}/${teamTot.ricP}/${teamTot.ricSlash}/${teamTot.ricM}/${teamTot.ricMM})`, 98, rowY + 4.3, { align: "center" });
+        doc.text(`${teamTot.attTot} (${teamTot.attPP}/${teamTot.attP}/${teamTot.attSlash}/${teamTot.attM}/${teamTot.attMM})`, 120.5, rowY + 4.3, { align: "center" });
+        doc.text(`${teamTot.murTot} (${teamTot.murPP}/${teamTot.murP}/${teamTot.murSlash}/${teamTot.murM}/${teamTot.murMM})`, 142.5, rowY + 4.3, { align: "center" });
+        doc.text(`${teamTot.difTot} (${teamTot.difPP}/${teamTot.difP}/${teamTot.difSlash}/${teamTot.difM}/${teamTot.difMM})`, 164.5, rowY + 4.3, { align: "center" });
+        doc.text(`${teamTot.alzTot} (${teamTot.alzPP}/${teamTot.alzP}/${teamTot.alzSlash}/${teamTot.alzM}/${teamTot.alzMM})`, 188, rowY + 4.3, { align: "center" });
+
+        rowY += 9;
+
+        // Box speciali attacco e alzate
+        doc.setFillColor(245, 245, 245);
+        doc.roundedRect(10, rowY, 190, 20, 1.5, 1.5, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(254, 81, 0);
+        doc.text("Dettaglio Tipologia Attacchi:", 13, rowY + 4.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`Mani Out Nostro: ${teamTot.attManiOutNostro}  •  Murata Loro: ${teamTot.attMurataLoro}  •  Murata Noi: ${teamTot.attMurataNoi}  •  Mani Out Subito: ${teamTot.attManiOutSubito}`, 13, rowY + 8.5);
+        doc.text(`Pallonetto: ${teamTot.attPallonetto}  •  Piazzata: ${teamTot.attPiazzata}  •  Fast: ${teamTot.attFast}  •  Pipe: ${teamTot.attPipe}  •  Slash: ${teamTot.attSlashSub}`, 13, rowY + 12.5);
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 119, 107);
+        doc.text("Dettaglio Alzate:", 13, rowY + 16.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`Super/Veloce: ${teamTot.alzSuper}  •  Tesa: ${teamTot.alzTesa}  •  Mezza: ${teamTot.alzMezza}  •  Alta: ${teamTot.alzAlta}`, 40, rowY + 16.5);
+
+        // Footer Pagina
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(10, 282, 200, 282);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(110, 110, 110);
+        doc.text(`pag. ${paginaNum}-${totPag}`, 10, 287);
+        doc.text(dataFormattata, 200, 287, { align: "right" });
+      };
+
+      // 2. GENERATORE PAGINA SINTETICA
+      const disegnaSinteticaPagina = (paginaNum, totPag) => {
+        doc.addPage();
+
+        // Header Pagina: Box punteggio
+        doc.setFillColor(0, 119, 107);
+        doc.roundedRect(15, 14, 23, 14, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(`${setVintiCasa}-${setVintiOspite}`, 26.5, 23, { align: "center" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${squadraCasa} vs ${squadraOspite}`, 42, 20);
+
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(42, 22.5, 150, 22.5);
+
+        if (imgMap.logo) {
+          doc.addImage(imgMap.logo, 'PNG', 158, 13, 37, 16);
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(254, 81, 0);
+        doc.text("Statistiche Giocatori (Riepilogo Sintetico)", 15, 34);
+
+        const tableTopY = 38;
+        doc.setFillColor(3, 83, 78);
+        doc.rect(15, tableTopY, 180, 7, 'F');
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
-        doc.setTextColor(0, 119, 107);
-        doc.text(String(g.numero), 18, rowY + 4.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("#", 18, tableTopY + 4.8);
+        doc.text("Giocatore", 24, tableTopY + 4.8);
+        doc.text("Ruolo", 62, tableTopY + 4.8);
+        doc.text("Pti", 76, tableTopY + 4.8);
+        doc.text("Ace/Bat", 88, tableTopY + 4.8);
+        doc.text("Kill/Att", 108, tableTopY + 4.8);
+        doc.text("Att %", 128, tableTopY + 4.8);
+        doc.text("Ric ++", 144, tableTopY + 4.8);
+        doc.text("Ric %", 160, tableTopY + 4.8);
+        doc.text("Muri", 180, tableTopY + 4.8);
 
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(20, 20, 20);
-        doc.text(nom.substring(0, 22) + (g.capitano ? " (K)" : ""), 24, rowY + 4.5);
-        doc.text(g.ruolo || "-", 62, rowY + 4.5);
+        let rowY = tableTopY + 7;
+        playerRows.forEach((st, idx) => {
+          const g = st.giocatore;
+          const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || (`Atleta #${g.numero}`);
+          const attEff = st.attTot > 0 ? Math.round(((st.attPP - st.attMM - st.attM) / st.attTot) * 100) : 0;
+          const ricPosPct = st.ricTot > 0 ? Math.round(((st.ricPP + st.ricP) / st.ricTot) * 100) : 0;
+
+          if (idx % 2 === 1) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(15, rowY, 180, 6.2, 'F');
+          }
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.setTextColor(0, 119, 107);
+          doc.text(String(g.numero), 18, rowY + 4.5);
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(20, 20, 20);
+          doc.text(nom.substring(0, 22) + (g.capitano ? " (K)" : ""), 24, rowY + 4.5);
+          doc.text(g.ruolo || "-", 62, rowY + 4.5);
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(46, 204, 113);
+          doc.text(String(st.totPunti), 76, rowY + 4.5);
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(40, 40, 40);
+          doc.text(`${st.batPP}/${st.batTot}`, 88, rowY + 4.5);
+          doc.text(`${st.attPP}/${st.attTot}`, 108, rowY + 4.5);
+          doc.text(`${attEff}%`, 128, rowY + 4.5);
+          doc.text(String(st.ricPP), 144, rowY + 4.5);
+          doc.text(`${ricPosPct}%`, 160, rowY + 4.5);
+          doc.text(String(st.murPP), 180, rowY + 4.5);
+
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.2);
+          doc.line(15, rowY + 6.2, 195, rowY + 6.2);
+
+          rowY += 6.2;
+        });
+
+        const teamAttEffPct = teamTot.attTot > 0 ? Math.round(((teamTot.attPP - teamTot.attMM - teamTot.attM) / teamTot.attTot) * 100) : 0;
+        const teamRicPosPct = teamTot.ricTot > 0 ? Math.round(((teamTot.ricPP + teamTot.ricP) / teamTot.ricTot) * 100) : 0;
+
+        doc.setFillColor(3, 83, 78);
+        doc.rect(15, rowY, 180, 6.5, 'F');
 
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(46, 204, 113);
-        doc.text(String(st.totPunti), 76, rowY + 4.5);
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("TOT", 18, rowY + 4.5);
+        doc.text("TOTALE SQUADRA", 24, rowY + 4.5);
+        doc.text("-", 62, rowY + 4.5);
+        doc.setTextColor(104, 202, 196);
+        doc.text(String(teamTot.totPunti), 76, rowY + 4.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${teamTot.batPP}/${teamTot.batTot}`, 88, rowY + 4.5);
+        doc.text(`${teamTot.attPP}/${teamTot.attTot}`, 108, rowY + 4.5);
+        doc.text(`${teamAttEffPct}%`, 128, rowY + 4.5);
+        doc.text(String(teamTot.ricPP), 144, rowY + 4.5);
+        doc.text(`${teamRicPosPct}%`, 160, rowY + 4.5);
+        doc.text(String(teamTot.murPP), 180, rowY + 4.5);
+
+        rowY += 10;
+
+        // Box speciali attacco
+        doc.setFillColor(245, 245, 245);
+        doc.roundedRect(15, rowY, 180, 20, 1.5, 1.5, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(254, 81, 0);
+        doc.text("Dettaglio Tipologia Attacchi:", 18, rowY + 4.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`Mani Out Nostro: ${teamTot.attManiOutNostro}  •  Murata Loro: ${teamTot.attMurataLoro}  •  Murata Noi: ${teamTot.attMurataNoi}  •  Mani Out Subito: ${teamTot.attManiOutSubito}`, 18, rowY + 8.5);
+        doc.text(`Pallonetto: ${teamTot.attPallonetto}  •  Piazzata: ${teamTot.attPiazzata}  •  Fast: ${teamTot.attFast}  •  Pipe: ${teamTot.attPipe}  •  Slash: ${teamTot.attSlashSub}`, 18, rowY + 12.5);
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 119, 107);
+        doc.text("Dettaglio Alzate:", 18, rowY + 16.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`Super/Veloce: ${teamTot.alzSuper}  •  Tesa: ${teamTot.alzTesa}  •  Mezza: ${teamTot.alzMezza}  •  Alta: ${teamTot.alzAlta}`, 45, rowY + 16.5);
+
+        doc.setDrawColor(254, 81, 0);
+        doc.setLineWidth(0.5);
+        doc.line(15, 282, 195, 282);
 
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(40, 40, 40);
-        doc.text(`${st.aces}/${st.battuteTot}`, 88, rowY + 4.5);
-        doc.text(`${st.killAttacco}/${st.attacchiTot}`, 108, rowY + 4.5);
-        doc.text(`${attEff}%`, 128, rowY + 4.5);
-        doc.text(String(st.perfRicezione), 144, rowY + 4.5);
-        doc.text(`${ricPosPct}%`, 160, rowY + 4.5);
-        doc.text(String(st.muriPunto), 180, rowY + 4.5);
+        doc.setFontSize(8);
+        doc.setTextColor(110, 110, 110);
+        doc.text(`pag. ${paginaNum}-${totPag}`, 15, 287);
+        doc.text(dataFormattata, 195, 287, { align: "right" });
+      };
 
-        doc.setDrawColor(220, 220, 220);
-        doc.setLineWidth(0.2);
-        doc.line(15, rowY + 6.2, 195, rowY + 6.2);
-
-        rowY += 6.2;
-      });
-
-      // RIGA TOTALE SQUADRA SUL REFERTO PDF
-      let teamPtiTot = 0, teamAcesTot = 0, teamBatTot = 0;
-      let teamKillTot = 0, teamAttTot = 0, teamErrAttTot = 0, teamMurAttTot = 0;
-      let teamPerfRicTot = 0, teamPosRicTot = 0, teamRicTot = 0, teamMurPtiTot = 0;
-
-      playerRows.forEach(st => {
-        teamPtiTot += st.totPunti;
-        teamAcesTot += st.aces;
-        teamBatTot += st.battuteTot;
-        teamKillTot += st.killAttacco;
-        teamAttTot += st.attacchiTot;
-        teamErrAttTot += st.errAttacco;
-        teamMurAttTot += st.muratiAttacco;
-        teamPerfRicTot += st.perfRicezione;
-        teamPosRicTot += st.posRicezione;
-        teamRicTot += st.ricezioniTot;
-        teamMurPtiTot += st.muriPunto;
-      });
-
-      const teamAttEffPct = teamAttTot > 0 ? Math.round(((teamKillTot - teamErrAttTot - teamMurAttTot) / teamAttTot) * 100) : 0;
-      const teamRicPosPct = teamRicTot > 0 ? Math.round(((teamPerfRicTot + teamPosRicTot) / teamRicTot) * 100) : 0;
-
-      doc.setFillColor(3, 83, 78);
-      doc.rect(15, rowY, 180, 6.5, 'F');
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text("TOT", 18, rowY + 4.5);
-      doc.text("TOTALE SQUADRA", 24, rowY + 4.5);
-      doc.text("-", 62, rowY + 4.5);
-      doc.setTextColor(104, 202, 196);
-      doc.text(String(teamPtiTot), 76, rowY + 4.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`${teamAcesTot}/${teamBatTot}`, 88, rowY + 4.5);
-      doc.text(`${teamKillTot}/${teamAttTot}`, 108, rowY + 4.5);
-      doc.text(`${teamAttEffPct}%`, 128, rowY + 4.5);
-      doc.text(String(teamPerfRicTot), 144, rowY + 4.5);
-      doc.text(`${teamRicPosPct}%`, 160, rowY + 4.5);
-      doc.text(String(teamMurPtiTot), 180, rowY + 4.5);
-
-      rowY += 10;
-
-      // BOX DETTAGLIO COLPI & TIPOLOGIE ATTACCO SUL REFERTO PDF
-      let pallonetti = 0, piazzate = 0, fast = 0, pipe = 0, slash = 0;
-      let maniOutNostro = 0, murataLoro = 0, murataNoi = 0, maniOutSubito = 0;
-      let superAlz = 0, tesaAlz = 0, mezzaAlz = 0, altaAlz = 0;
-      (storicoEventi || []).forEach(ev => {
-        const sp = (ev.speciale || '').toUpperCase();
-        if (ev.fondamentale === 'attacco') {
-          if (sp === 'PALLONETTO') pallonetti++;
-          else if (sp === 'PIAZZATA') piazzate++;
-          else if (sp === 'FAST') fast++;
-          else if (sp === 'PIPE') pipe++;
-          else if (sp === 'SLASH') slash++;
-          else if (sp === 'MANI OUT NOSTRO' || sp === 'MANI OUT') maniOutNostro++;
-          else if (sp === 'MURATA RIGIOCANO LORO' || sp === 'TOCCATO MURO') murataLoro++;
-          else if (sp === 'MURATA RIGIOCHIAMO NOI') murataNoi++;
-          else if (sp === 'MANI OUT SUBITO') maniOutSubito++;
-        } else if (ev.fondamentale === 'alzata') {
-          if (sp === 'SUPER' || sp.includes('VELOCE')) superAlz++;
-          else if (sp === 'TESA') tesaAlz++;
-          else if (sp === 'MEZZA') mezzaAlz++;
-          else if (sp === 'ALTA') altaAlz++;
-        }
-      });
-
-      doc.setFillColor(245, 245, 245);
-      doc.roundedRect(15, rowY, 180, 20, 1.5, 1.5, 'F');
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(254, 81, 0);
-      doc.text("Dettaglio Tipologia Attacchi:", 18, rowY + 4.5);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(40, 40, 40);
-      doc.text(`Mani Out Nostro: ${maniOutNostro}  •  Murata Loro: ${murataLoro}  •  Murata Noi: ${murataNoi}  •  Mani Out Subito: ${maniOutSubito}`, 18, rowY + 8.5);
-      doc.text(`Pallonetto: ${pallonetti}  •  Piazzata: ${piazzate}  •  Fast: ${fast}  •  Pipe: ${pipe}  •  Slash: ${slash}`, 18, rowY + 12.5);
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 119, 107);
-      doc.text("Dettaglio Alzate:", 18, rowY + 16.5);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(40, 40, 40);
-      doc.text(`Super/Veloce: ${superAlz}  •  Tesa: ${tesaAlz}  •  Mezza: ${mezzaAlz}  •  Alta: ${altaAlz}`, 45, rowY + 16.5);
-
-      // FOOTER PAGINA 2: Separatore rosso, pag. 2-2 e data corrente
-      doc.setDrawColor(254, 81, 0); // #fe5100
-      doc.setLineWidth(0.5);
-      doc.line(15, 282, 195, 282);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(110, 110, 110);
-      doc.text("pag. 2-2", 15, 287);
-      doc.text(dataFormattata, 195, 287, { align: "right" });
+      // SELEZIONE PAGINE IN BASE ALLA RICHIESTA
+      if (tutteLePagine) {
+        disegnaMatriceFondamentaliPagina(2, 3);
+        disegnaSinteticaPagina(3, 3);
+      } else if (vistaScelta === 'sintetica') {
+        disegnaSinteticaPagina(2, 2);
+      } else {
+        // Default: MATRICE FONDAMENTALI (# + ! - =)
+        disegnaMatriceFondamentaliPagina(2, 2);
+      }
 
       doc.save(`QuickScout_Report_${squadraCasa.replace(/\s+/g, '_')}_vs_${squadraOspite.replace(/\s+/g, '_')}.pdf`);
       return doc;
@@ -3116,7 +3341,84 @@ class ScoutApp {
   generaReportPDFPerPartita(id) {
     const p = this.archivioPartite.find(item => item.id === id);
     if (!p) return;
-    this.generaReportPDF(p);
+    this.generaReportPDF(p, { vista: 'matrice' });
+  }
+
+  stampaSchermataReport() {
+    const m = this.reportMatchData;
+    const sqCasa = m ? m.squadraCasa : this.squadraCasa;
+    const sqOspite = m ? m.squadraOspite : this.squadraOspite;
+    const setVCasa = m ? (m.setVintiCasa ?? 0) : this.setVintiCasa;
+    const setVOspite = m ? (m.setVintiOspite ?? 0) : this.setVintiOspite;
+    const stSet = m ? (m.storicoSet || []) : (this.storicoSet || []);
+    const parzStr = stSet.map(s => `Set ${s.set}: ${s.puntiCasa}-${s.puntiOspite}`).join('  •  ') || '';
+    const dataOggi = new Date().toLocaleDateString('it-IT');
+
+    const tableEl = document.getElementById('table-statistiche-report');
+    if (!tableEl) return;
+
+    let subTitolo = "Matrice Fondamentali (# + ! - =)";
+    if (this.sottoVistaReport === 'sintetica') subTitolo = "Statistiche Sintetiche";
+    else if (this.sottoVistaReport === 'colpi') subTitolo = "Dettaglio Colpi & Alzate";
+
+    const printWin = window.open('', '_blank', 'width=1050,height=750');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>QuickScout - ${sqCasa} vs ${sqOspite}</title>
+        <style>
+          @page { size: A4 landscape; margin: 8mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 12px; color: #111; background: #fff; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FE5100; padding-bottom: 8px; margin-bottom: 12px; }
+          .score { font-size: 24px; font-weight: 900; color: #00776B; }
+          .teams { font-size: 18px; font-weight: bold; }
+          .sub { font-size: 11px; color: #555; margin-top: 3px; }
+          table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+          th, td { padding: 5px 6px; text-align: center; border-bottom: 1px solid #ddd; }
+          th { background: #03534E; color: #fff; font-size: 10px; }
+          th.table-matrice-header-fond { font-size: 9.5px; }
+          th small { font-size: 8px; opacity: 0.9; }
+          tr:nth-child(even) td { background: #f9f9f9; }
+          .riga-totale-squadra td { background: #03534E !important; color: #fff !important; font-weight: bold; }
+          .footer { margin-top: 15px; font-size: 10px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 6px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="teams">${sqCasa} vs ${sqOspite} <span class="score">${setVCasa} - ${setVOspite}</span></div>
+            <div class="sub">${subTitolo} ${parzStr ? '• ' + parzStr : ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:900; color:#FE5100; font-size:16px;">QuickScout Volley</div>
+            <div style="font-size:11px; color:#666;">Data: ${dataOggi}</div>
+          </div>
+        </div>
+        <table>
+          ${tableEl.innerHTML}
+        </table>
+        <div class="footer">
+          <span>QuickScout DotNext Edition</span>
+          <span>Stampato il ${dataOggi} alle ${new Date().toLocaleTimeString('it-IT')}</span>
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
   }
 
   renderStoricoPartite() {

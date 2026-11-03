@@ -1672,3 +1672,66 @@ html, body {
   color: #00E5FF !important;
   font-size: 12px !important;
 }
+
+/* =========================================================
+   STAMPA REPORT & MATRICE FONDAMENTALI
+   ========================================================= */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, sans-serif !important;
+  }
+  .app-container, .top-bar, .tastierino-valutazioni, .riga-speciali-attacco,
+  .bottom-bar, .menu-laterale, .ruota-scout-modal, .modal-close-btn, .modal-footer,
+  .filtri-set-container, .gestione-tabs, .btn-filtro-set {
+    display: none !important;
+  }
+  #modal-report-interattivo {
+    position: static !important;
+    background: transparent !important;
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  #modal-report-interattivo .modal-box {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+  #tab-report-giocatori {
+    display: block !important;
+  }
+  .table-statistiche-full {
+    width: 100% !important;
+    color: #000000 !important;
+    font-size: 10px !important;
+    border-collapse: collapse !important;
+  }
+  .table-statistiche-full th {
+    background: #03534E !important;
+    color: #ffffff !important;
+    padding: 4px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .table-statistiche-full td {
+    color: #111111 !important;
+    padding: 4px !important;
+    border-bottom: 1px solid #cccccc !important;
+  }
+  .riga-totale-squadra td {
+    background: #03534E !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
