@@ -194,6 +194,10 @@
         <!-- Campetto Verticale Arancione (#F39C12) per Traiettoria Colpi -->
         <div class="campetto-container" title="Traccia la direzione del colpo con il dito">
           <canvas id="canvas-campetto"></canvas>
+          <div id="campetto-floating-controls" class="campetto-floating-controls" style="display:none;">
+            <button type="button" class="btn-campetto-tool" onclick="event.stopPropagation(); app.invertiTraiettoria();" title="Inverti direzione della freccia (Origine ➔ Arrivo)">🔄 Inverti</button>
+            <button type="button" class="btn-campetto-tool btn-campetto-tool-del" onclick="event.stopPropagation(); app.cancellaTraiettoria();" title="Cancella la traiettoria tracciata">✕</button>
+          </div>
         </div>
 
         <!-- Tastierino Valutazioni Standard (++, +, !, -, ==) -->
@@ -887,13 +891,53 @@
           </div>
         </div>
 
-        <!-- TAB TRAIETTORIE -->
+        <!-- TAB TRAIETTORIE & ANALISI TATTICA BATTUTE -->
         <div id="tab-report-traiettorie" class="tab-content" style="display:none;">
-          <p style="font-size:12px; color:#E0F2F1; margin-bottom:10px;">
-            Mappa vettoriale delle traiettorie registrate sul campo:
-          </p>
-          <div style="display:flex; justify-content:center; background:#023835; border-radius:8px; padding:14px;">
-            <canvas id="canvas-report-traiettorie" width="360" height="520" style="border:2px solid #00ADB5; border-radius:6px; background:#F39C12;"></canvas>
+          <!-- BARRA FILTRI PRINCIPALE (Tipo Analisi Colpo) -->
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; background:#023835; padding:8px 12px; border-radius:6px; border:1px solid rgba(0,173,181,0.3);">
+            <span style="font-size:12px; font-weight:bold; color:#00E5FF; margin-right:4px;">Tipo Analisi:</span>
+            <button id="btn-filtro-traj-battute-avv" class="btn-filtro-set attivo" onclick="app.impostaFiltroTraiettoria('battute_avv')" style="background:#FE5100; font-weight:bold;" title="Analizza le direzioni di battuta degli avversari e come riceviamo noi">
+              🎯 Battute Avversarie (Ricezioni)
+            </button>
+            <button id="btn-filtro-traj-nostre-battute" class="btn-filtro-set" onclick="app.impostaFiltroTraiettoria('nostre_battute')" title="Analizza dove batte la nostra squadra">
+              🚀 Nostre Battute
+            </button>
+            <button id="btn-filtro-traj-attacchi" class="btn-filtro-set" onclick="app.impostaFiltroTraiettoria('attacchi')" title="Analizza le direzioni dei nostri attacchi">
+              💥 Nostri Attacchi
+            </button>
+            <button id="btn-filtro-traj-tutte" class="btn-filtro-set" onclick="app.impostaFiltroTraiettoria('tutte')" title="Mostra tutte le traiettorie registrate">
+              🏐 Tutte
+            </button>
+          </div>
+
+          <!-- BARRA FILTRI SECONDARIA (Filtro Set & Filtro Giocatore) -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
+            <div id="report-traj-filtri-set" class="filtri-set-container" style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+              <!-- Bottoni Tutti, Set 1, Set 2... generati dinamicamente -->
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <label for="select-filtro-traj-giocatore" style="font-size:12px; color:#ddd; font-weight:bold;">Atleta:</label>
+              <select id="select-filtro-traj-giocatore" onchange="app.impostaFiltroTraiettoriaGiocatore(this.value)" style="background:#03534E; color:#fff; border:1px solid #00ADB5; padding:5px 8px; border-radius:4px; font-size:12px;">
+                <option value="tutti">Tutti i Giocatori</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- CONTENITORE PRINCIPALE: CAMPETTO + PANNELLO TATTICO -->
+          <div class="report-traiettorie-grid" style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+            <!-- COLONNA 1: CAMPETTO VETTORIALE -->
+            <div style="display:flex; flex-direction:column; align-items:center; background:#023835; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.25);">
+              <canvas id="canvas-report-traiettorie" width="360" height="520" style="border:2px solid #00ADB5; border-radius:6px; background:#F39C12; max-width:100%; height:auto; display:block;"></canvas>
+              <!-- LEGENDA COLORI SOTTO AL CAMPETTO -->
+              <div id="legenda-report-traiettorie" style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:8px; font-size:11px; color:#eee;">
+                <!-- Inserito dinamicamente in base al fondamentale -->
+              </div>
+            </div>
+
+            <!-- COLONNA 2: STATISTICHE TATTICHE & BERSAGLI -->
+            <div id="report-traiettorie-statistiche-tattiche" style="flex:1; min-width:300px; max-width:500px; display:flex; flex-direction:column; gap:10px;">
+              <!-- Riempito dinamicamente -->
+            </div>
           </div>
         </div>
       </div>

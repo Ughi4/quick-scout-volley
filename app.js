@@ -106,6 +106,10 @@ class ScoutApp {
     this.centraliPartitaIds = [];
     this.liberoEsclusoManualmente = false;
 
+    this.filtroTraiettoriaTipo = 'battute_avv'; // Default 'battute_avv' per analisi tattica battuta avversaria
+    this.filtroTraiettoriaSet = 'tutti';
+    this.filtroTraiettoriaGiocatore = 'tutti';
+
     this.initLocalStorage();
     this.initCanvasCampetto();
     this.initRuotaInteractive();
@@ -1569,7 +1573,7 @@ class ScoutApp {
   }
 
   // =========================================================
-  // CAMPETTO TRAIETTORIE CANVAS
+  // CAMPETTO TRAIETTORIE CANVAS (Con supporto Battuta Avversaria)
   // =========================================================
   initCanvasCampetto() {
     const canvas = document.getElementById('canvas-campetto');
@@ -1600,26 +1604,118 @@ class ScoutApp {
       ctx.lineTo(w - 6, h / 2);
       ctx.stroke();
 
+      // Scritta RETE al centro
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('— RETE —', w / 2, h / 2);
+
       // Linee dei 3 metri tratteggiate
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
       ctx.lineWidth = 1.8;
       ctx.setLineDash([5, 5]);
 
       ctx.beginPath();
-      ctx.moveTo(6, h / 2 - h * 0.16);
-      ctx.lineTo(w - 6, h / 2 - h * 0.16);
+      ctx.moveTo(6, h / 2 - h * 0.166);
+      ctx.lineTo(w - 6, h / 2 - h * 0.166);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(6, h / 2 + h * 0.16);
-      ctx.lineTo(w - 6, h / 2 + h * 0.16);
+      ctx.moveTo(6, h / 2 + h * 0.166);
+      ctx.lineTo(w - 6, h / 2 + h * 0.166);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Freccia traiettoria
+      // Linee divisorie corridoi (3 colonne) molto soffuse
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(w / 3, 6);
+      ctx.lineTo(w / 3, h - 6);
+      ctx.moveTo((w * 2) / 3, 6);
+      ctx.lineTo((w * 2) / 3, h - 6);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Zone numbering tenue sul campetto
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Campo avversario (in alto)
+      ctx.fillText('Z1', w * 0.166, h * 0.12);
+      ctx.fillText('Z6', w * 0.5, h * 0.12);
+      ctx.fillText('Z5', w * 0.833, h * 0.12);
+      ctx.fillText('Z2', w * 0.166, h * 0.38);
+      ctx.fillText('Z3', w * 0.5, h * 0.38);
+      ctx.fillText('Z4', w * 0.833, h * 0.38);
+      // Campo nostro (in basso)
+      ctx.fillText('Z4', w * 0.166, h * 0.62);
+      ctx.fillText('Z3', w * 0.5, h * 0.62);
+      ctx.fillText('Z2', w * 0.833, h * 0.62);
+      ctx.fillText('Z5', w * 0.166, h * 0.88);
+      ctx.fillText('Z6', w * 0.5, h * 0.88);
+      ctx.fillText('Z1', w * 0.833, h * 0.88);
+
+      // Header & Footer contestuali in base al fondamentale attivo
+      const fond = this.fondamentaleSelezionato;
+      ctx.font = 'bold 10px sans-serif';
+
+      if (fond === 'ricezione') {
+        // In ricezione: BATTUTA AVVERSARI in alto, NOSTRA RICEZIONE in basso
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(8, 8, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏐 BATTUTA AVVERSARI (Origine) ⬇', w / 2, 20);
+
+        ctx.fillStyle = 'rgba(0, 120, 110, 0.8)';
+        ctx.fillRect(8, h - 26, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('🛡️ NOSTRA RICEZIONE (Arrivo)', w / 2, h - 14);
+      } else if (fond === 'battuta') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(8, 8, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯 CAMPO AVVERSARIO (Bersaglio)', w / 2, 20);
+
+        ctx.fillStyle = 'rgba(0, 120, 110, 0.8)';
+        ctx.fillRect(8, h - 26, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('🚀 NOSTRA BATTUTA (Origine) ⬆', w / 2, h - 14);
+      } else if (fond === 'attacco') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(8, 8, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯 CAMPO AVVERSARIO (Bersaglio)', w / 2, 20);
+
+        ctx.fillStyle = 'rgba(254, 81, 0, 0.8)';
+        ctx.fillRect(8, h - 26, w - 16, 18);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('💥 NOSTRO ATTACCO (Origine) ⬆', w / 2, h - 14);
+      } else {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(8, 8, w - 16, 16);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText('CAMPO AVVERSARIO', w / 2, 19);
+
+        ctx.fillStyle = 'rgba(0, 120, 110, 0.7)';
+        ctx.fillRect(8, h - 24, w - 16, 16);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText('CAMPO NOSTRO', w / 2, h - 13);
+      }
+
+      // Freccia traiettoria tracciata
       if (this.traiettoria.xInizio !== null && this.traiettoria.xFine !== null) {
-        ctx.strokeStyle = '#00ADB5';
-        ctx.fillStyle = '#00ADB5';
+        const isRic = (fond === 'ricezione');
+        const color = isRic ? '#00E5FF' : '#00ADB5';
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
         ctx.lineWidth = 3.5;
 
         const x1 = this.traiettoria.xInizio * w;
@@ -1627,15 +1723,18 @@ class ScoutApp {
         const x2 = this.traiettoria.xFine * w;
         const y2 = this.traiettoria.yFine * h;
 
+        // Origine
         ctx.beginPath();
         ctx.arc(x1, y1, 5, 0, Math.PI * 2);
         ctx.fill();
 
+        // Linea
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
+        // Punta freccia
         const angle = Math.atan2(y2 - y1, x2 - x1);
         ctx.beginPath();
         ctx.moveTo(x2, y2);
@@ -1643,6 +1742,15 @@ class ScoutApp {
         ctx.lineTo(x2 - 12 * Math.cos(angle + Math.PI / 6), y2 - 12 * Math.sin(angle + Math.PI / 6));
         ctx.closePath();
         ctx.fill();
+
+        // Etichette Origine e Arrivo
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#FFFFFF';
+        if (isRic) {
+          ctx.fillText('Battuta', x1, y1 > 18 ? y1 - 8 : y1 + 14);
+          ctx.fillText('Arrivo', x2, y2 < h - 18 ? y2 + 14 : y2 - 8);
+        }
       }
     };
 
@@ -1670,14 +1778,83 @@ class ScoutApp {
 
     canvas.addEventListener('pointerup', () => {
       drawing = false;
+      if (this.traiettoria.xInizio !== null && this.traiettoria.xFine !== null) {
+        const dist = Math.hypot(this.traiettoria.xFine - this.traiettoria.xInizio, this.traiettoria.yFine - this.traiettoria.yInizio);
+        if (dist > 0.04) {
+          if (this.fondamentaleSelezionato === 'ricezione') {
+            // Normalizzazione intelligente: la battuta avversaria parte dall'alto ed entra nel nostro campo (in basso)
+            // Se lo scout ha tracciato dal basso verso l'alto (dal ricevitore verso la battuta avversaria):
+            if (this.traiettoria.yInizio > this.traiettoria.yFine) {
+              const tempX = this.traiettoria.xInizio;
+              const tempY = this.traiettoria.yInizio;
+              this.traiettoria.xInizio = this.traiettoria.xFine;
+              this.traiettoria.yInizio = this.traiettoria.yFine;
+              this.traiettoria.xFine = tempX;
+              this.traiettoria.yFine = tempY;
+            }
+          } else if (this.fondamentaleSelezionato === 'battuta' || this.fondamentaleSelezionato === 'attacco') {
+            // Nostra battuta o attacco: parte dal nostro campo (in basso) e va verso l'alto
+            if (this.traiettoria.yInizio < this.traiettoria.yFine) {
+              const tempX = this.traiettoria.xInizio;
+              const tempY = this.traiettoria.yInizio;
+              this.traiettoria.xInizio = this.traiettoria.xFine;
+              this.traiettoria.yInizio = this.traiettoria.yFine;
+              this.traiettoria.xFine = tempX;
+              this.traiettoria.yFine = tempY;
+            }
+          }
+        }
+        const floatControls = document.getElementById('campetto-floating-controls');
+        if (floatControls) floatControls.style.display = 'flex';
+        redraw();
+      }
     });
 
     this.redrawCampetto = redraw;
   }
 
+  invertiTraiettoria() {
+    if (this.traiettoria.xInizio !== null && this.traiettoria.xFine !== null) {
+      const tempX = this.traiettoria.xInizio;
+      const tempY = this.traiettoria.yInizio;
+      this.traiettoria.xInizio = this.traiettoria.xFine;
+      this.traiettoria.yInizio = this.traiettoria.yFine;
+      this.traiettoria.xFine = tempX;
+      this.traiettoria.yFine = tempY;
+      if (this.redrawCampetto) this.redrawCampetto();
+    }
+  }
+
   cancellaTraiettoria() {
     this.traiettoria = { xInizio: null, yInizio: null, xFine: null, yFine: null };
+    const floatControls = document.getElementById('campetto-floating-controls');
+    if (floatControls) floatControls.style.display = 'none';
     if (this.redrawCampetto) this.redrawCampetto();
+  }
+
+  determinaZonaCampo(x, y, isCampoNostro) {
+    if (x === null || y === null || isNaN(x) || isNaN(y)) return 'N/D';
+    if (isCampoNostro) {
+      if (y < 0.67) {
+        if (x < 0.333) return 'Z4';
+        if (x < 0.666) return 'Z3';
+        return 'Z2';
+      } else {
+        if (x < 0.333) return 'Z5';
+        if (x < 0.666) return 'Z6';
+        return 'Z1';
+      }
+    } else {
+      if (y >= 0.33) {
+        if (x < 0.333) return 'Z2';
+        if (x < 0.666) return 'Z3';
+        return 'Z4';
+      } else {
+        if (x < 0.333) return 'Z1';
+        if (x < 0.666) return 'Z6';
+        return 'Z5';
+      }
+    }
   }
 
   // =========================================================
@@ -3245,6 +3422,11 @@ class ScoutApp {
         ? `<span class="badge-mini-player">${miniBadge}</span> <span>${testoUltima}</span>`
         : `<span>${testoUltima}</span>`;
     }
+
+    // 9. Aggiorna indicazioni sul Campetto Direzioni
+    if (this.redrawCampetto) {
+      this.redrawCampetto();
+    }
   }
 
   // =========================================================
@@ -3600,6 +3782,77 @@ class ScoutApp {
     const stSet = m ? (m.storicoSet || []) : (this.storicoSet || []);
     const parzStr = stSet.map(s => `Set ${s.set}: ${s.puntiCasa}-${s.puntiOspite}`).join('  •  ') || '';
     const dataOggi = new Date().toLocaleDateString('it-IT');
+
+    // Se l'utente si trova nella scheda Traiettorie, stampa la mappa del campo con l'analisi tattica
+    if (this.tabReportAttivo === 'traiettorie') {
+      const canvas = document.getElementById('canvas-report-traiettorie');
+      const statsEl = document.getElementById('report-traiettorie-statistiche-tattiche');
+      if (!canvas) return;
+      const imgData = canvas.toDataURL('image/png');
+      const statsHtml = statsEl ? statsEl.innerHTML : '';
+
+      let titFiltro = 'Battute Avversarie';
+      if (this.filtroTraiettoriaTipo === 'nostre_battute') titFiltro = 'Nostre Battute';
+      else if (this.filtroTraiettoriaTipo === 'attacchi') titFiltro = 'Nostri Attacchi';
+      else if (this.filtroTraiettoriaTipo === 'tutte') titFiltro = 'Tutte le Traiettorie';
+
+      const printWin = window.open('', '_blank', 'width=1050,height=750');
+      if (!printWin) {
+        window.print();
+        return;
+      }
+
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>QuickScout Traiettorie - ${sqCasa} vs ${sqOspite}</title>
+          <style>
+            @page { size: A4 landscape; margin: 8mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 12px; color: #111; background: #fff; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FE5100; padding-bottom: 8px; margin-bottom: 12px; }
+            .score { font-size: 24px; font-weight: 900; color: #00776B; }
+            .teams { font-size: 18px; font-weight: bold; }
+            .sub { font-size: 11px; color: #555; margin-top: 3px; }
+            .content-row { display: flex; gap: 24px; align-items: flex-start; justify-content: center; }
+            .court-img { width: 330px; border: 2px solid #00ADB5; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+            .stats-col { flex: 1; max-width: 520px; font-size: 11px; }
+            .footer { margin-top: 15px; font-size: 10px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 6px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="teams">${sqCasa} vs ${sqOspite} <span class="score">${setVCasa} - ${setVOspite}</span></div>
+              <div class="sub">Mappa Traiettorie: ${titFiltro} ${parzStr ? '• ' + parzStr : ''}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:900; color:#FE5100; font-size:16px;">QuickScout Volley</div>
+              <div style="font-size:11px; color:#666;">Data: ${dataOggi}</div>
+            </div>
+          </div>
+          <div class="content-row">
+            <div>
+              <img src="${imgData}" class="court-img">
+            </div>
+            <div class="stats-col">
+              ${statsHtml}
+            </div>
+          </div>
+          <div class="footer">
+            <span>QuickScout Volley Pro - Analisi Tattica Traiettorie</span>
+            <span>Generato il ${dataOggi}</span>
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+      return;
+    }
 
     const tableEl = document.getElementById('table-statistiche-report');
     if (!tableEl) return;
@@ -4832,6 +5085,24 @@ class ScoutApp {
     table.innerHTML = html;
   }
 
+  // =========================================================
+  // GESTIONE FILTRI REPORT TRAIETTORIE & ANALISI TATTICA
+  // =========================================================
+  impostaFiltroTraiettoria(tipo) {
+    this.filtroTraiettoriaTipo = tipo;
+    this.renderReportTraiettorie();
+  }
+
+  impostaFiltroTraiettoriaSet(setVal) {
+    this.filtroTraiettoriaSet = setVal;
+    this.renderReportTraiettorie();
+  }
+
+  impostaFiltroTraiettoriaGiocatore(idG) {
+    this.filtroTraiettoriaGiocatore = idG;
+    this.renderReportTraiettorie();
+  }
+
   renderReportTraiettorie() {
     const canvas = document.getElementById('canvas-report-traiettorie');
     if (!canvas) return;
@@ -4840,84 +5111,555 @@ class ScoutApp {
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Sfondo campo arancione
-    ctx.fillStyle = '#F39C12';
+    const m = this.reportMatchData;
+    const eventi = m ? (m.storicoEventi || []) : (this.storicoEventi || []);
+    const roster = m ? (m.tuttiGiocatori || this.tuttiGiocatori) : this.tuttiGiocatori;
+
+    const tipoFiltro = this.filtroTraiettoriaTipo || 'battute_avv';
+    const setFiltro = this.filtroTraiettoriaSet || 'tutti';
+    const giocFiltro = this.filtroTraiettoriaGiocatore || 'tutti';
+
+    // 1. Aggiorna stile bottoni filtro tipo
+    const btnBattuteAvv = document.getElementById('btn-filtro-traj-battute-avv');
+    const btnNostreBattute = document.getElementById('btn-filtro-traj-nostre-battute');
+    const btnAttacchi = document.getElementById('btn-filtro-traj-attacchi');
+    const btnTutte = document.getElementById('btn-filtro-traj-tutte');
+
+    if (btnBattuteAvv) {
+      btnBattuteAvv.classList.toggle('attivo', tipoFiltro === 'battute_avv');
+      btnBattuteAvv.style.background = (tipoFiltro === 'battute_avv') ? '#FE5100' : '#0C8A80';
+    }
+    if (btnNostreBattute) {
+      btnNostreBattute.classList.toggle('attivo', tipoFiltro === 'nostre_battute');
+      btnNostreBattute.style.background = (tipoFiltro === 'nostre_battute') ? '#FE5100' : '#0C8A80';
+    }
+    if (btnAttacchi) {
+      btnAttacchi.classList.toggle('attivo', tipoFiltro === 'attacchi');
+      btnAttacchi.style.background = (tipoFiltro === 'attacchi') ? '#FE5100' : '#0C8A80';
+    }
+    if (btnTutte) {
+      btnTutte.classList.toggle('attivo', tipoFiltro === 'tutte');
+      btnTutte.style.background = (tipoFiltro === 'tutte') ? '#FE5100' : '#0C8A80';
+    }
+
+    // 2. Popola pulsanti Set
+    const containerSet = document.getElementById('report-traj-filtri-set');
+    if (containerSet) {
+      const maxSet = Math.max(1, (m ? (m.storicoSet?.length || 0) : (this.setCorrente || 1)));
+      let htmlSet = `<span style="font-size:12px; font-weight:bold; color:#ddd; margin-right:4px;">Set:</span>`;
+      htmlSet += `<button class="btn-filtro-set ${setFiltro === 'tutti' ? 'attivo' : ''}" onclick="app.impostaFiltroTraiettoriaSet('tutti')">Tutti i Set</button>`;
+      for (let s = 1; s <= maxSet; s++) {
+        htmlSet += `<button class="btn-filtro-set ${String(setFiltro) === String(s) ? 'attivo' : ''}" onclick="app.impostaFiltroTraiettoriaSet(${s})">Set ${s}</button>`;
+      }
+      containerSet.innerHTML = htmlSet;
+    }
+
+    // 3. Popola select giocatori
+    const selGioc = document.getElementById('select-filtro-traj-giocatore');
+    if (selGioc) {
+      const currentVal = giocFiltro;
+      let optHtml = `<option value="tutti">Tutti i Giocatori</option>`;
+      roster.filter(g => g.convocato !== false).forEach(g => {
+        const nom = [g.cognome, g.nome].filter(Boolean).join(' ') || ('Atleta #' + g.numero);
+        optHtml += `<option value="${g.id}" ${String(currentVal) === String(g.id) ? 'selected' : ''}>#${g.numero} ${nom} (${g.ruolo})</option>`;
+      });
+      selGioc.innerHTML = optHtml;
+    }
+
+    // 4. Filtra eventi con traiettoria valida
+    let eventiFiltrati = eventi.filter(e => e.traiettoria && e.traiettoria.xInizio !== null && e.traiettoria.xFine !== null);
+
+    if (setFiltro !== 'tutti') {
+      const numS = parseInt(setFiltro);
+      eventiFiltrati = eventiFiltrati.filter(e => e.set === numS);
+    }
+
+    if (giocFiltro !== 'tutti') {
+      const idG = parseInt(giocFiltro);
+      eventiFiltrati = eventiFiltrati.filter(e => e.giocatore && e.giocatore.id === idG);
+    }
+
+    if (tipoFiltro === 'battute_avv') {
+      eventiFiltrati = eventiFiltrati.filter(e => e.fondamentale === 'ricezione');
+    } else if (tipoFiltro === 'nostre_battute') {
+      eventiFiltrati = eventiFiltrati.filter(e => e.fondamentale === 'battuta');
+    } else if (tipoFiltro === 'attacchi') {
+      eventiFiltrati = eventiFiltrati.filter(e => e.fondamentale === 'attacco');
+    }
+
+    // 5. DISEGNO DEL CAMPETTO SUL CANVAS REPORT
+    const cX = 25;
+    const cY = 22;
+    const cW = w - 50;
+    const cH = h - 44;
+
+    // Sfondo zona libera verde scuro
+    ctx.fillStyle = '#023835';
     ctx.fillRect(0, 0, w, h);
 
-    // Bordo campo bianco
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(8, 8, w - 16, h - 16);
+    // Rettangolo campo di gioco arancione volley
+    ctx.fillStyle = '#F39C12';
+    ctx.fillRect(cX, cY, cW, cH);
 
-    // Rete centrale
+    // Linee perimetrali bianche
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(cX, cY, cW, cH);
+
+    // Rete centrale verde (#27AE60)
+    const netY = cY + cH / 2;
     ctx.strokeStyle = '#27AE60';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(8, h / 2);
-    ctx.lineTo(w - 8, h / 2);
+    ctx.moveTo(cX - 8, netY);
+    ctx.lineTo(cX + cW + 8, netY);
     ctx.stroke();
 
-    // Linee 3 metri
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    ctx.lineWidth = 1.8;
+    // Antenne rosse e scritta RETE
+    ctx.fillStyle = '#E74C3C';
+    ctx.fillRect(cX - 9, netY - 5, 4, 10);
+    ctx.fillRect(cX + cW + 5, netY - 5, 4, 10);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('— RETE / NET —', w / 2, netY);
+
+    // Linee 3 metri (attacco) tratteggiate
+    const top3m = cY + (cH / 2) * (2 / 3);
+    const bot3m = netY + (cH / 2) * (1 / 3);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
-    ctx.moveTo(8, h / 2 - h * 0.16);
-    ctx.lineTo(w - 8, h / 2 - h * 0.16);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(8, h / 2 + h * 0.16);
-    ctx.lineTo(w - 8, h / 2 + h * 0.16);
+    ctx.moveTo(cX, top3m);
+    ctx.lineTo(cX + cW, top3m);
+    ctx.moveTo(cX, bot3m);
+    ctx.lineTo(cX + cW, bot3m);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Disegna tutte le traiettorie registrate
-    const eventsWithTraj = this.storicoEventi.filter(e => e.traiettoria && e.traiettoria.xInizio !== null && e.traiettoria.xFine !== null);
+    // Linee divisorie corridoi (3 colonne)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cX + cW / 3, cY);
+    ctx.lineTo(cX + cW / 3, cY + cH);
+    ctx.moveTo(cX + (cW * 2) / 3, cY);
+    ctx.lineTo(cX + (cW * 2) / 3, cY + cH);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-    eventsWithTraj.forEach(e => {
+    // Etichette Zone e Intestazioni Campi
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Intestazione Campo Avversario (in alto)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillText('CAMPO AVVERSARIO', w / 2, cY + 11);
+
+    // Zone avversarie
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('Z1', cX + cW * 0.166, cY + cH * 0.12);
+    ctx.fillText('Z6', cX + cW * 0.5, cY + cH * 0.12);
+    ctx.fillText('Z5', cX + cW * 0.833, cY + cH * 0.12);
+    ctx.fillText('Z2', cX + cW * 0.166, cY + cH * 0.38);
+    ctx.fillText('Z3', cX + cW * 0.5, cY + cH * 0.38);
+    ctx.fillText('Z4', cX + cW * 0.833, cY + cH * 0.38);
+
+    // Intestazione Campo Nostro (in basso)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('CAMPO NOSTRO', w / 2, cY + cH - 11);
+
+    // Zone nostre
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('Z4', cX + cW * 0.166, cY + cH * 0.62);
+    ctx.fillText('Z3', cX + cW * 0.5, cY + cH * 0.62);
+    ctx.fillText('Z2', cX + cW * 0.833, cY + cH * 0.62);
+    ctx.fillText('Z5', cX + cW * 0.166, cY + cH * 0.88);
+    ctx.fillText('Z6', cX + cW * 0.5, cY + cH * 0.88);
+    ctx.fillText('Z1', cX + cW * 0.833, cY + cH * 0.88);
+
+    // 6. DISEGNO DELLE TRAIETTORIE
+    eventiFiltrati.forEach(e => {
       const t = e.traiettoria;
-      const x1 = t.xInizio * w;
-      const y1 = t.yInizio * h;
-      const x2 = t.xFine * w;
-      const y2 = t.yFine * h;
+      let nx1 = t.xInizio;
+      let ny1 = t.yInizio;
+      let nx2 = t.xFine;
+      let ny2 = t.yFine;
 
-      const color = e.valutazione === '++' ? '#2ECC71' : e.valutazione === '==' ? '#E74C3C' : '#00ADB5';
+      // Normalizzazione automatica intelligente:
+      if (e.fondamentale === 'ricezione' && ny1 > ny2) {
+        // Disegnato dal ricevitore verso la battuta avversaria: invertiamo per visualizzare da battuta ad arrivo ricezione
+        [nx1, nx2] = [nx2, nx1];
+        [ny1, ny2] = [ny2, ny1];
+      } else if ((e.fondamentale === 'battuta' || e.fondamentale === 'attacco') && ny1 < ny2) {
+        // Nostro colpo disegnato al contrario: invertiamo
+        [nx1, nx2] = [nx2, nx1];
+        [ny1, ny2] = [ny2, ny1];
+      }
+
+      const x1 = cX + nx1 * cW;
+      const y1 = cY + ny1 * cH;
+      const x2 = cX + nx2 * cW;
+      const y2 = cY + ny2 * cH;
+
+      // Colore in base alla valutazione e tipologia
+      let color = '#00ADB5';
+      if (e.valutazione === '++' || e.speciale === 'MANI OUT NOSTRO') color = '#2ECC71';
+      else if (e.valutazione === '+' || e.speciale === 'MURATA RIGIOCHIAMO NOI') color = '#00E5FF';
+      else if (e.valutazione === '!' || e.speciale === 'MURATA RIGIOCANO LORO') color = '#F39C12';
+      else if (e.valutazione === '-') color = '#E67E22';
+      else if (e.valutazione === '==' || e.speciale === 'MANI OUT SUBITO') color = '#E74C3C';
+
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.8;
 
+      // Origine del colpo
       ctx.beginPath();
-      ctx.arc(x1, y1, 4, 0, Math.PI * 2);
+      ctx.arc(x1, y1, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
+      // Linea della traiettoria
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
 
+      // Freccia all'arrivo
       const angle = Math.atan2(y2 - y1, x2 - x1);
       ctx.beginPath();
       ctx.moveTo(x2, y2);
-      ctx.lineTo(x2 - 10 * Math.cos(angle - Math.PI / 6), y2 - 10 * Math.sin(angle - Math.PI / 6));
-      ctx.lineTo(x2 - 10 * Math.cos(angle + Math.PI / 6), y2 - 10 * Math.sin(angle + Math.PI / 6));
+      ctx.lineTo(x2 - 11 * Math.cos(angle - Math.PI / 6), y2 - 11 * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - 11 * Math.cos(angle + Math.PI / 6), y2 - 11 * Math.sin(angle + Math.PI / 6));
       ctx.closePath();
       ctx.fill();
 
-      // Indicatore numero maglia all'origine
+      // Badge Giocatore Nostro
       if (e.giocatore) {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('#' + e.giocatore.numero, x1, y1 - 6);
+        if (e.fondamentale === 'ricezione') {
+          // In ricezione il nostro giocatore riceve la palla all'ARRIVO (x2, y2)!
+          ctx.beginPath();
+          ctx.arc(x2, y2, 8.5, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.3;
+          ctx.stroke();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 8.5px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(e.giocatore.numero, x2, y2);
+        } else {
+          // In battuta o attacco il nostro giocatore colpisce all'ORIGINE (x1, y1)
+          ctx.beginPath();
+          ctx.arc(x1, y1, 8.5, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.3;
+          ctx.stroke();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 8.5px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(e.giocatore.numero, x1, y1);
+        }
       }
     });
 
-    if (eventsWithTraj.length === 0) {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    if (eventiFiltrati.length === 0) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(cX + 20, netY - 35, cW - 40, 70);
+      ctx.strokeStyle = '#00ADB5';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cX + 20, netY - 35, cW - 40, 70);
+
+      ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Nessuna traiettoria tracciata con il dito', w / 2, h / 2);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Nessuna traiettoria registrata', w / 2, netY - 10);
+      ctx.font = '10px sans-serif';
+      ctx.fillStyle = '#00E5FF';
+      ctx.fillText('Traccia la direzione sul campetto durante la gara!', w / 2, netY + 12);
     }
+
+    // 7. LEGENDA COLORI
+    const legendaEl = document.getElementById('legenda-report-traiettorie');
+    if (legendaEl) {
+      if (tipoFiltro === 'battute_avv') {
+        legendaEl.innerHTML = `
+          <span>🟢 ++ Perfetta</span>
+          <span>🔵 + Positiva</span>
+          <span>🟡 ! / - Gestita</span>
+          <span>🔴 == Ace Subito</span>
+        `;
+      } else if (tipoFiltro === 'nostre_battute') {
+        legendaEl.innerHTML = `
+          <span>🟢 ++ Ace</span>
+          <span>🔵 + / ! In gioco</span>
+          <span>🔴 == Errore</span>
+        `;
+      } else if (tipoFiltro === 'attacchi') {
+        legendaEl.innerHTML = `
+          <span>🟢 ++ Vincente / Mani Out</span>
+          <span>🔵 + Coperto / Rigiochiamo</span>
+          <span>🟡 ! Difeso / Rigiocano loro</span>
+          <span>🔴 == Murato / Errore</span>
+        `;
+      } else {
+        legendaEl.innerHTML = `
+          <span>🟢 ++ Punto / Vincente</span>
+          <span>🔵 + Positivo</span>
+          <span>🟡 ! Neutro</span>
+          <span>🔴 == Errore</span>
+        `;
+      }
+    }
+
+    // 8. PANNELLO STATISTICHE TATTICHE A DESTRA
+    this.renderPannelloStatisticheTattiche(eventiFiltrati, tipoFiltro);
+  }
+
+  renderPannelloStatisticheTattiche(eventi, tipoFiltro) {
+    const container = document.getElementById('report-traiettorie-statistiche-tattiche');
+    if (!container) return;
+
+    const tot = eventi.length;
+    if (tot === 0) {
+      container.innerHTML = `
+        <div style="background:#03534E; border-radius:8px; padding:16px; border:1px solid rgba(0,173,181,0.25); text-align:center; color:#ccc;">
+          <h4 style="color:#00E5FF; margin-top:0;">Nessuna Traiettoria Trovata</h4>
+          <p style="font-size:12px; margin-bottom:8px;">Seleziona un altro fondamentale o tocca "Tutti i Set" per visualizzare le traiettorie registrate.</p>
+          <div style="font-size:11px; color:#FFD54F; background:rgba(0,0,0,0.2); padding:6px; border-radius:4px; margin-top:6px;">
+            💡 Consiglio: Durante la ricezione, puoi tracciare il dito dal punto di battuta avversario fino al ricevitore nostro!
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+
+    if (tipoFiltro === 'battute_avv') {
+      const ricPP = eventi.filter(e => e.valutazione === '++').length;
+      const ricP = eventi.filter(e => e.valutazione === '+').length;
+      const ricNeutre = eventi.filter(e => e.valutazione === '!' || e.valutazione === '-').length;
+      const ricMM = eventi.filter(e => e.valutazione === '==').length;
+      const posPct = Math.round(((ricPP + ricP) / tot) * 100);
+      const prfPct = Math.round((ricPP / tot) * 100);
+
+      // Conteggio per zona di arrivo nel nostro campo
+      const zoneCount = { Z1: 0, Z6: 0, Z5: 0, Z4: 0, Z3: 0, Z2: 0 };
+      eventi.forEach(e => {
+        let ny2 = e.traiettoria.yFine;
+        let nx2 = e.traiettoria.xFine;
+        if (e.traiettoria.yInizio > e.traiettoria.yFine) {
+          ny2 = e.traiettoria.yInizio;
+          nx2 = e.traiettoria.xInizio;
+        }
+        const z = this.determinaZonaCampo(nx2, ny2, true);
+        if (zoneCount[z] !== undefined) zoneCount[z]++;
+      });
+
+      // Ricevitori più bersagliati
+      const perGiocatore = {};
+      eventi.forEach(e => {
+        if (!e.giocatore) return;
+        const gid = e.giocatore.id;
+        if (!perGiocatore[gid]) {
+          perGiocatore[gid] = { giocatore: e.giocatore, tot: 0, pp: 0, p: 0, mm: 0 };
+        }
+        perGiocatore[gid].tot++;
+        if (e.valutazione === '++') perGiocatore[gid].pp++;
+        if (e.valutazione === '+') perGiocatore[gid].p++;
+        if (e.valutazione === '==') perGiocatore[gid].mm++;
+      });
+      const ricList = Object.values(perGiocatore).sort((a, b) => b.tot - a.tot);
+
+      // Zona più bersagliata
+      let maxZona = 'Z6';
+      let maxZCount = -1;
+      Object.entries(zoneCount).forEach(([z, c]) => {
+        if (c > maxZCount) { maxZCount = c; maxZona = z; }
+      });
+      const maxZPct = tot > 0 ? Math.round((maxZCount / tot) * 100) : 0;
+
+      html = `
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:6px; margin-bottom:8px;">
+            <span style="font-weight:900; color:#00E5FF; font-size:13px;">🎯 STUDIO BATTUTE AVVERSARIE</span>
+            <span style="background:#FE5100; color:#fff; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px;">${tot} Battute Ricevute</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center; margin-bottom:6px;">
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#2ECC71;">${posPct}%</div>
+              <div style="font-size:10px; color:#ddd;">Ricezione Positiva</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#00E5FF;">${prfPct}%</div>
+              <div style="font-size:10px; color:#ddd;">Perfetta (++)</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#E74C3C;">${ricMM}</div>
+              <div style="font-size:10px; color:#ddd;">Ace Subiti (==)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="font-weight:bold; color:#00E5FF; font-size:12px; margin-bottom:8px;">
+            📍 DOVE BATTONO GLI AVVERSARI (Zone bersaglio nel nostro campo):
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center; margin-bottom:6px;">
+            <div style="background:rgba(0,0,0,0.25); padding:5px; border-radius:4px; border: ${maxZona === 'Z5' && maxZCount > 0 ? '1px solid #FE5100' : 'none'};">
+              <div style="font-size:10px; color:#bbb;">Posto 5 (Z5)</div>
+              <div style="font-weight:900; color:#fff; font-size:13px;">${zoneCount.Z5} <span style="font-size:10px; color:#00E5FF;">(${tot > 0 ? Math.round((zoneCount.Z5 / tot) * 100) : 0}%)</span></div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:5px; border-radius:4px; border: ${maxZona === 'Z6' && maxZCount > 0 ? '1px solid #FE5100' : 'none'};">
+              <div style="font-size:10px; color:#bbb;">Posto 6 (Z6)</div>
+              <div style="font-weight:900; color:#fff; font-size:13px;">${zoneCount.Z6} <span style="font-size:10px; color:#00E5FF;">(${tot > 0 ? Math.round((zoneCount.Z6 / tot) * 100) : 0}%)</span></div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:5px; border-radius:4px; border: ${maxZona === 'Z1' && maxZCount > 0 ? '1px solid #FE5100' : 'none'};">
+              <div style="font-size:10px; color:#bbb;">Posto 1 (Z1)</div>
+              <div style="font-weight:900; color:#fff; font-size:13px;">${zoneCount.Z1} <span style="font-size:10px; color:#00E5FF;">(${tot > 0 ? Math.round((zoneCount.Z1 / tot) * 100) : 0}%)</span></div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
+            <div style="background:rgba(0,0,0,0.2); padding:4px; border-radius:4px;">
+              <div style="font-size:9.5px; color:#bbb;">Corta Z4</div>
+              <div style="font-weight:bold; color:#eee; font-size:11px;">${zoneCount.Z4}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:4px; border-radius:4px;">
+              <div style="font-size:9.5px; color:#bbb;">Corta Z3</div>
+              <div style="font-weight:bold; color:#eee; font-size:11px;">${zoneCount.Z3}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:4px; border-radius:4px;">
+              <div style="font-size:9.5px; color:#bbb;">Corta Z2</div>
+              <div style="font-weight:bold; color:#eee; font-size:11px;">${zoneCount.Z2}</div>
+            </div>
+          </div>
+          ${maxZCount > 0 ? `
+            <div style="margin-top:6px; font-size:11px; color:#FFD54F; background:rgba(0,0,0,0.2); padding:4px 8px; border-radius:4px;">
+              💡 Bersaglio principale avversario: <strong>Posto ${maxZona.replace('Z', '')}</strong> (${maxZPct}% delle battute ricevute).
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="font-weight:bold; color:#00E5FF; font-size:12px; margin-bottom:8px;">
+            👥 RICEVITORI PIÙ BERSAGLIATI:
+          </div>
+          <table style="width:100%; font-size:11px; border-collapse:collapse; color:#fff;">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.2); color:#00E5FF; font-size:10px;">
+                <th style="text-align:left; padding:3px;">Atleta</th>
+                <th style="padding:3px;">Ruolo</th>
+                <th style="padding:3px;">Battute</th>
+                <th style="padding:3px;">% Pos</th>
+                <th style="padding:3px;">Ace Sub</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ricList.map(r => {
+                const nom = [r.giocatore.cognome, r.giocatore.nome].filter(Boolean).join(' ') || ('#' + r.giocatore.numero);
+                const pos = Math.round(((r.pp + r.p) / r.tot) * 100);
+                return `
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <td style="text-align:left; font-weight:bold; padding:4px 2px;">#${r.giocatore.numero} ${nom}</td>
+                    <td style="text-align:center; opacity:0.8;">${r.giocatore.ruolo}</td>
+                    <td style="text-align:center; font-weight:bold;">${r.tot}</td>
+                    <td style="text-align:center; color:#2ECC71; font-weight:bold;">${pos}%</td>
+                    <td style="text-align:center; color:${r.mm > 0 ? '#E74C3C' : '#bbb'}; font-weight:bold;">${r.mm}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (tipoFiltro === 'nostre_battute') {
+      const batAce = eventi.filter(e => e.valutazione === '++').length;
+      const batErr = eventi.filter(e => e.valutazione === '==').length;
+      const batInGioco = tot - batAce - batErr;
+
+      html = `
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:6px; margin-bottom:8px;">
+            <span style="font-weight:900; color:#00E5FF; font-size:13px;">🚀 NOSTRE BATTUTE</span>
+            <span style="background:#00ADB5; color:#fff; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px;">${tot} Battute Tracciate</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#2ECC71;">${batAce}</div>
+              <div style="font-size:10px; color:#ddd;">Ace Vincenti (++)</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#00E5FF;">${batInGioco}</div>
+              <div style="font-size:10px; color:#ddd;">In Gioco (+ / !)</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#E74C3C;">${batErr}</div>
+              <div style="font-size:10px; color:#ddd;">Errori (==)</div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (tipoFiltro === 'attacchi') {
+      const attVinc = eventi.filter(e => e.valutazione === '++' || e.speciale === 'MANI OUT NOSTRO').length;
+      const attErr = eventi.filter(e => e.valutazione === '==' || e.speciale === 'MANI OUT SUBITO').length;
+      const attMuriNoi = eventi.filter(e => e.speciale === 'MURATA RIGIOCHIAMO NOI').length;
+      const attMuriLoro = eventi.filter(e => e.speciale === 'MURATA RIGIOCANO LORO').length;
+
+      html = `
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:6px; margin-bottom:8px;">
+            <span style="font-weight:900; color:#00E5FF; font-size:13px;">💥 NOSTRI ATTACCHI</span>
+            <span style="background:#FE5100; color:#fff; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px;">${tot} Attacchi Tracciati</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; text-align:center; margin-bottom:6px;">
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#2ECC71;">${attVinc}</div>
+              <div style="font-size:10px; color:#ddd;">Vincenti (++) / Mani Out</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.25); padding:6px; border-radius:4px;">
+              <div style="font-size:16px; font-weight:900; color:#E74C3C;">${attErr}</div>
+              <div style="font-size:10px; color:#ddd;">Errori (==) / Murati Subiti</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; text-align:center;">
+            <div style="background:rgba(0,0,0,0.2); padding:5px; border-radius:4px;">
+              <div style="font-size:13px; font-weight:bold; color:#00E5FF;">${attMuriNoi}</div>
+              <div style="font-size:9.5px; color:#ddd;">Murata Rigiochiamo Noi</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:5px; border-radius:4px;">
+              <div style="font-size:13px; font-weight:bold; color:#F39C12;">${attMuriLoro}</div>
+              <div style="font-size:9.5px; color:#ddd;">Murata Rigiocano Loro</div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      html = `
+        <div style="background:#03534E; border-radius:8px; padding:12px; border:1px solid rgba(0,173,181,0.3);">
+          <div style="font-weight:900; color:#00E5FF; font-size:13px; margin-bottom:6px;">🏐 TUTTE LE TRAIETTORIE</div>
+          <div style="font-size:12px; color:#eee;">Totale colpi tracciati: <strong>${tot}</strong></div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
   }
 
   // =========================================================
